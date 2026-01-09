@@ -13,8 +13,12 @@ import {
   Headphones,
   Star,
   Check,
-  Loader2
+  Loader2,
+  Flame,
+  Share2,
+  Copy
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Product {
   id: string;
@@ -25,6 +29,7 @@ interface Product {
   image_url: string | null;
   payment_info: string | null;
   is_featured: boolean | null;
+  is_todays_deal: boolean | null;
 }
 
 interface ContactInfo {
@@ -39,6 +44,7 @@ const ProductDetails = () => {
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
@@ -94,6 +100,24 @@ const ProductDetails = () => {
     window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product?.name,
+          text: `Check out ${product?.name} at MISAFA Technologies!`,
+          url,
+        });
+      } catch (err) {
+        // User cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied!", description: "Product link copied to clipboard." });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -139,7 +163,7 @@ const ProductDetails = () => {
           <div className="grid lg:grid-cols-2 gap-12 mb-16">
             {/* Product Image */}
             <div className="relative">
-              <div className="aspect-square rounded-2xl overflow-hidden bg-muted border border-border">
+              <div className="aspect-square rounded-2xl overflow-hidden bg-muted border border-border shadow-lg">
                 {product.image_url ? (
                   <img
                     src={product.image_url}
@@ -153,12 +177,31 @@ const ProductDetails = () => {
                 )}
               </div>
               
-              {product.is_featured && (
-                <Badge className="absolute top-4 left-4 bg-gradient-accent text-primary-foreground gap-1">
-                  <Star className="w-3 h-3" />
-                  Featured
-                </Badge>
-              )}
+              {/* Badges */}
+              <div className="absolute top-4 left-4 flex flex-col gap-2">
+                {product.is_featured && (
+                  <Badge className="bg-yellow-500 text-yellow-950 gap-1 shadow-lg">
+                    <Star className="w-3 h-3 fill-current" />
+                    Featured
+                  </Badge>
+                )}
+                {product.is_todays_deal && (
+                  <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white gap-1 shadow-lg">
+                    <Flame className="w-3 h-3" />
+                    Today's Deal
+                  </Badge>
+                )}
+              </div>
+
+              {/* Share Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleShare}
+                className="absolute top-4 right-4 bg-card/80 backdrop-blur-sm"
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
             </div>
 
             {/* Product Info */}
@@ -198,7 +241,7 @@ const ProductDetails = () => {
               <Button
                 onClick={handleWhatsAppBuy}
                 size="lg"
-                className="w-full gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 mb-8"
+                className="w-full gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 mb-8 shadow-lg"
               >
                 <MessageCircle className="w-6 h-6" />
                 Order via WhatsApp
@@ -208,7 +251,7 @@ const ProductDetails = () => {
               <div className="grid grid-cols-3 gap-4">
                 {[
                   { icon: Shield, label: "Genuine Products" },
-                  { icon: Truck, label: "Fast Delivery" },
+                  { icon: Truck, label: "Countrywide Delivery" },
                   { icon: Headphones, label: "24/7 Support" },
                 ].map((badge, index) => (
                   <div key={index} className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/30 border border-border">

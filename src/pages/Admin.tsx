@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { 
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
-  Package, Settings, ArrowLeft, Save 
+  Package, Settings, ArrowLeft, Save, Star, Flame,
+  Upload, Image as ImageIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -25,6 +28,8 @@ interface Product {
   category: string;
   image_url: string | null;
   payment_info: string | null;
+  is_featured: boolean | null;
+  is_todays_deal: boolean | null;
 }
 
 interface Category {
@@ -43,16 +48,26 @@ interface ContactInfo {
   account_number: string | null;
 }
 
+interface SiteSettings {
+  id: string;
+  logo_url: string | null;
+  site_name: string;
+  tagline: string | null;
+}
+
 const Admin = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [savingContact, setSavingContact] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -62,6 +77,8 @@ const Admin = () => {
     category: "",
     image_url: "",
     payment_info: "",
+    is_featured: false,
+    is_todays_deal: false,
   });
 
   const navigate = useNavigate();
@@ -88,15 +105,17 @@ const Admin = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes, contactRes] = await Promise.all([
+      const [productsRes, categoriesRes, contactRes, settingsRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("*").order("name"),
         supabase.from("contact_info").select("*").limit(1).single(),
+        supabase.from("site_settings").select("*").limit(1).single(),
       ]);
 
       if (productsRes.data) setProducts(productsRes.data);
       if (categoriesRes.data) setCategories(categoriesRes.data);
       if (contactRes.data) setContactInfo(contactRes.data);
+      if (settingsRes.data) setSiteSettings(settingsRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -117,6 +136,8 @@ const Admin = () => {
       category: "",
       image_url: "",
       payment_info: "",
+      is_featured: false,
+      is_todays_deal: false,
     });
     setEditingProduct(null);
   };
@@ -130,6 +151,8 @@ const Admin = () => {
       category: product.category,
       image_url: product.image_url || "",
       payment_info: product.payment_info || "",
+      is_featured: product.is_featured || false,
+      is_todays_deal: product.is_todays_deal || false,
     });
     setIsDialogOpen(true);
   };
@@ -153,6 +176,8 @@ const Admin = () => {
       category: productForm.category,
       image_url: productForm.image_url.trim() || null,
       payment_info: productForm.payment_info.trim() || null,
+      is_featured: productForm.is_featured,
+      is_todays_deal: productForm.is_todays_deal,
     };
 
     if (editingProduct) {
@@ -196,6 +221,30 @@ const Admin = () => {
     }
   };
 
+  const handleToggleFeatured = async (product: Product) => {
+    const { error } = await supabase
+      .from("products")
+      .update({ is_featured: !product.is_featured })
+      .eq("id", product.id);
+    
+    if (!error) {
+      fetchData();
+      toast({ title: product.is_featured ? "Removed from featured" : "Marked as featured" });
+    }
+  };
+
+  const handleToggleDeal = async (product: Product) => {
+    const { error } = await supabase
+      .from("products")
+      .update({ is_todays_deal: !product.is_todays_deal })
+      .eq("id", product.id);
+    
+    if (!error) {
+      fetchData();
+      toast({ title: product.is_todays_deal ? "Removed from deals" : "Added to today's deals" });
+    }
+  };
+
   const handleSaveContact = async () => {
     if (!contactInfo) return;
     setSavingContact(true);
@@ -221,6 +270,62 @@ const Admin = () => {
     setSavingContact(false);
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !siteSettings) return;
+    
+    const file = e.target.files[0];
+    setUploadingLogo(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('logos')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('site_settings')
+        .update({ logo_url: publicUrl })
+        .eq('id', siteSettings.id);
+
+      if (updateError) throw updateError;
+
+      setSiteSettings({ ...siteSettings, logo_url: publicUrl });
+      toast({ title: "Success", description: "Logo uploaded successfully!" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!siteSettings) return;
+    setSavingSettings(true);
+
+    const { error } = await supabase
+      .from("site_settings")
+      .update({
+        site_name: siteSettings.site_name,
+        tagline: siteSettings.tagline,
+      })
+      .eq("id", siteSettings.id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Saved", description: "Settings updated successfully!" });
+    }
+    setSavingSettings(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -236,10 +341,14 @@ const Admin = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-lg">MISAFA Admin</span>
+              {siteSettings?.logo_url ? (
+                <img src={siteSettings.logo_url} alt="Logo" className="h-10 w-auto" />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-primary-foreground" />
+                </div>
+              )}
+              <span className="font-display font-bold text-lg">Admin Dashboard</span>
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -267,7 +376,7 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="w-4 h-4" />
-              Contact & Payment
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -288,7 +397,7 @@ const Admin = () => {
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
                       {editingProduct ? "Edit Product" : "Add New Product"}
@@ -358,6 +467,31 @@ const Admin = () => {
                         rows={2}
                       />
                     </div>
+                    
+                    {/* Featured & Deal toggles */}
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-yellow-500" />
+                          <Label>Featured Product</Label>
+                        </div>
+                        <Switch
+                          checked={productForm.is_featured}
+                          onCheckedChange={(checked) => setProductForm({ ...productForm, is_featured: checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-orange-500" />
+                          <Label>Today's Deal</Label>
+                        </div>
+                        <Switch
+                          checked={productForm.is_todays_deal}
+                          onCheckedChange={(checked) => setProductForm({ ...productForm, is_todays_deal: checked })}
+                        />
+                      </div>
+                    </div>
+
                     <Button
                       onClick={handleSaveProduct}
                       className="w-full bg-gradient-accent hover:opacity-90"
@@ -408,9 +542,21 @@ const Admin = () => {
                         </div>
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground truncate">
-                            {product.name}
-                          </h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-foreground truncate">
+                              {product.name}
+                            </h3>
+                            {product.is_featured && (
+                              <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 gap-1">
+                                <Star className="w-3 h-3" /> Featured
+                              </Badge>
+                            )}
+                            {product.is_todays_deal && (
+                              <Badge variant="secondary" className="bg-orange-500/20 text-orange-600 gap-1">
+                                <Flame className="w-3 h-3" /> Deal
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground truncate">
                             {product.category}
                           </p>
@@ -419,7 +565,25 @@ const Admin = () => {
                           </p>
                         </div>
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap justify-end">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleToggleFeatured(product)}
+                            className={product.is_featured ? "text-yellow-500 border-yellow-500" : ""}
+                            title="Toggle featured"
+                          >
+                            <Star className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleToggleDeal(product)}
+                            className={product.is_todays_deal ? "text-orange-500 border-orange-500" : ""}
+                            title="Toggle deal"
+                          >
+                            <Flame className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="icon"
@@ -445,7 +609,100 @@ const Admin = () => {
           </TabsContent>
 
           {/* Settings Tab */}
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="space-y-6">
+            {/* Site Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5" />
+                  Site Settings
+                </CardTitle>
+                <CardDescription>
+                  Update your logo and site information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {siteSettings && (
+                  <>
+                    {/* Logo Upload */}
+                    <div className="space-y-4">
+                      <Label>Logo</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-xl bg-muted border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
+                          {siteSettings.logo_url ? (
+                            <img src={siteSettings.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                          ) : (
+                            <Shield className="w-10 h-10 text-muted-foreground/50" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                            id="logo-upload"
+                          />
+                          <label htmlFor="logo-upload">
+                            <Button variant="outline" className="gap-2" asChild disabled={uploadingLogo}>
+                              <span>
+                                {uploadingLogo ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                                Upload Logo
+                              </span>
+                            </Button>
+                          </label>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Recommended: 200x200px PNG or SVG
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Site Name</Label>
+                        <Input
+                          value={siteSettings.site_name}
+                          onChange={(e) =>
+                            setSiteSettings({ ...siteSettings, site_name: e.target.value })
+                          }
+                          placeholder="MISAFA TECHNOLOGIES"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tagline</Label>
+                        <Input
+                          value={siteSettings.tagline || ""}
+                          onChange={(e) =>
+                            setSiteSettings({ ...siteSettings, tagline: e.target.value })
+                          }
+                          placeholder="Powering, Protecting & Automating the Future"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleSaveSettings}
+                      className="bg-gradient-accent hover:opacity-90"
+                      disabled={savingSettings}
+                    >
+                      {savingSettings ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Save Settings
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact & Payment Settings */}
             <Card>
               <CardHeader>
                 <CardTitle>Contact & Payment Settings</CardTitle>
@@ -547,7 +804,7 @@ const Admin = () => {
                       ) : (
                         <Save className="w-4 h-4 mr-2" />
                       )}
-                      Save Changes
+                      Save Contact Info
                     </Button>
                   </>
                 )}

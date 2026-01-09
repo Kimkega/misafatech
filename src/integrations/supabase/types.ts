@@ -85,6 +85,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_featured: boolean | null
+          is_todays_deal: boolean | null
           name: string
           payment_info: string | null
           price: number
@@ -97,6 +98,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
+          is_todays_deal?: boolean | null
           name: string
           payment_info?: string | null
           price: number
@@ -109,9 +111,37 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
+          is_todays_deal?: boolean | null
           name?: string
           payment_info?: string | null
           price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          site_name: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          site_name?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          site_name?: string | null
+          tagline?: string | null
           updated_at?: string
         }
         Relationships: []
