@@ -374,6 +374,10 @@ const Admin = () => {
               <Package className="w-4 h-4" />
               Products
             </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2">
+              <Tag className="w-4 h-4" />
+              Categories
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="w-4 h-4" />
               Settings
