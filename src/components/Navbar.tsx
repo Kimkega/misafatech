@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Shield, LogIn, LogOut, Calculator } from "lucide-react";
+import { Menu, X, Shield, LogIn, LogOut, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -55,18 +55,20 @@ const Navbar = () => {
     { name: "Home", href: "/" },
     { name: "Products", href: "#products" },
     { name: "Deals", href: "#deals" },
-    { name: "Solar Calculator", href: "#calculator", icon: Calculator },
+    { name: "Energy Calculator", href: "#calculator", icon: Zap },
     { name: "Contact", href: "#contact" },
   ];
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-card/95 backdrop-blur-lg shadow-lg' : 'bg-transparent'
-    } border-b ${scrolled ? 'border-border' : 'border-transparent'}`}>
+      scrolled 
+        ? 'bg-card/95 backdrop-blur-lg shadow-lg border-b border-border' 
+        : 'bg-transparent border-b border-transparent'
+    }`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 relative z-50">
             {settings?.logo_url ? (
               <img 
                 src={settings.logo_url} 
@@ -74,15 +76,17 @@ const Navbar = () => {
                 className="h-10 md:h-12 w-auto object-contain"
               />
             ) : (
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-accent rounded-xl flex items-center justify-center shadow-glow">
-                <Shield className="w-6 h-6 md:w-7 md:h-7 text-primary-foreground" />
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                scrolled ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-white/20 backdrop-blur-sm'
+              }`}>
+                <Shield className={`w-6 h-6 md:w-7 md:h-7 ${scrolled ? 'text-white' : 'text-white'}`} />
               </div>
             )}
             <div className="flex flex-col">
-              <span className={`font-display font-bold text-lg md:text-xl leading-tight ${scrolled ? 'text-foreground' : 'text-primary-foreground'}`}>
+              <span className={`font-display font-bold text-lg md:text-xl leading-tight ${scrolled ? 'text-foreground' : 'text-white'}`}>
                 {settings?.site_name?.split(' ')[0] || 'MISAFA'}
               </span>
-              <span className={`text-xs ${scrolled ? 'text-muted-foreground' : 'text-primary-foreground/70'} -mt-1`}>
+              <span className={`text-xs -mt-1 ${scrolled ? 'text-muted-foreground' : 'text-white/70'}`}>
                 Technologies
               </span>
             </div>
@@ -94,13 +98,13 @@ const Navbar = () => {
               <a
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium transition-colors flex items-center gap-1 ${
+                className={`text-sm font-medium transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg ${
                   scrolled 
-                    ? 'text-muted-foreground hover:text-foreground' 
-                    : 'text-primary-foreground/80 hover:text-primary-foreground'
+                    ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {link.icon && <link.icon className="w-4 h-4" />}
+                {link.icon && <link.icon className="w-4 h-4 text-yellow-400" />}
                 {link.name}
               </a>
             ))}
@@ -111,7 +115,11 @@ const Navbar = () => {
             {user ? (
               <>
                 <Link to="/admin">
-                  <Button variant={scrolled ? "outline" : "secondary"} size="sm">
+                  <Button 
+                    variant={scrolled ? "outline" : "secondary"} 
+                    size="sm"
+                    className={!scrolled ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' : ''}
+                  >
                     Dashboard
                   </Button>
                 </Link>
@@ -119,7 +127,7 @@ const Navbar = () => {
                   variant="ghost"
                   size="sm"
                   onClick={handleLogout}
-                  className={`gap-2 ${!scrolled && 'text-primary-foreground hover:bg-primary-foreground/10'}`}
+                  className={`gap-2 ${!scrolled && 'text-white hover:bg-white/10'}`}
                 >
                   <LogOut className="w-4 h-4" />
                   Logout
@@ -127,7 +135,10 @@ const Navbar = () => {
               </>
             ) : (
               <Link to="/auth">
-                <Button variant="default" size="sm" className="gap-2 bg-gradient-accent hover:opacity-90 text-primary-foreground">
+                <Button 
+                  size="sm" 
+                  className="gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white border-0"
+                >
                   <LogIn className="w-4 h-4" />
                   Admin
                 </Button>
@@ -137,33 +148,33 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="md:hidden p-2 relative z-50"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
-              <X className={`w-6 h-6 ${scrolled ? 'text-foreground' : 'text-primary-foreground'}`} />
+              <X className={`w-6 h-6 ${scrolled ? 'text-foreground' : 'text-white'}`} />
             ) : (
-              <Menu className={`w-6 h-6 ${scrolled ? 'text-foreground' : 'text-primary-foreground'}`} />
+              <Menu className={`w-6 h-6 ${scrolled ? 'text-foreground' : 'text-white'}`} />
             )}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border animate-fade-in bg-card rounded-b-2xl">
-            <div className="flex flex-col gap-4">
+          <div className="md:hidden py-4 border-t border-border animate-fade-in bg-card rounded-b-2xl shadow-xl">
+            <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 px-2"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 px-4 py-3 rounded-lg"
                   onClick={() => setIsOpen(false)}
                 >
-                  {link.icon && <link.icon className="w-4 h-4" />}
+                  {link.icon && <link.icon className="w-4 h-4 text-yellow-500" />}
                   {link.name}
                 </a>
               ))}
-              <div className="pt-4 border-t border-border px-2">
+              <div className="pt-4 border-t border-border px-2 mt-2">
                 {user ? (
                   <div className="flex flex-col gap-2">
                     <Link to="/admin" onClick={() => setIsOpen(false)}>
@@ -175,7 +186,7 @@ const Navbar = () => {
                       variant="ghost"
                       size="sm"
                       onClick={handleLogout}
-                      className="gap-2"
+                      className="gap-2 w-full"
                     >
                       <LogOut className="w-4 h-4" />
                       Logout
@@ -183,7 +194,7 @@ const Navbar = () => {
                   </div>
                 ) : (
                   <Link to="/auth" onClick={() => setIsOpen(false)}>
-                    <Button variant="default" size="sm" className="w-full gap-2 bg-gradient-accent">
+                    <Button size="sm" className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white">
                       <LogIn className="w-4 h-4" />
                       Admin Login
                     </Button>

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, MessageCircle, Star, Tag, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Package, MessageCircle, Star, Tag, Eye, Search, X } from "lucide-react";
 
 interface Product {
   id: string;
@@ -31,6 +32,7 @@ const ProductsSection = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,15 +57,32 @@ const ProductsSection = () => {
     }
   };
 
-  const filteredProducts = selectedCategory === "All"
-    ? products
-    : products.filter((p) => p.category === selectedCategory);
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    
+    // Filter by category
+    if (selectedCategory !== "All") {
+      result = result.filter((p) => p.category === selectedCategory);
+    }
+    
+    // Filter by search query (realtime)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((p) => 
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query)
+      );
+    }
+    
+    return result;
+  }, [products, selectedCategory, searchQuery]);
 
   const handleWhatsAppBuy = (product: Product) => {
     if (!contactInfo) return;
     
     const message = encodeURIComponent(
-      `🛒 *Order Request - MISAFA Technologies*\n\n` +
+      `🛒 *Order Request*\n\n` +
       `📦 *Product:* ${product.name}\n` +
       `💰 *Price:* KES ${product.price.toLocaleString()}\n` +
       `📂 *Category:* ${product.category}\n\n` +
@@ -77,11 +96,11 @@ const ProductsSection = () => {
   };
 
   return (
-    <section id="products" className="py-20 bg-muted/30">
+    <section id="products" className="py-20 bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-10">
-          <span className="inline-block px-4 py-1 rounded-full bg-secondary/10 text-secondary text-sm font-medium mb-3">
+        <div className="text-center mb-8">
+          <span className="inline-block px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium mb-3">
             Our Products
           </span>
           <h2 className="font-display text-2xl md:text-4xl font-bold text-foreground mb-3">
@@ -92,13 +111,35 @@ const ProductsSection = () => {
           </p>
         </div>
 
+        {/* Search Bar */}
+        <div className="max-w-md mx-auto mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search products by name, description, or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10 h-12 rounded-full border-2 border-emerald-200 focus:border-emerald-500 bg-card"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Category Filters */}
         <div className="flex flex-wrap justify-center gap-2 mb-10">
           <Button
             size="sm"
             variant={selectedCategory === "All" ? "default" : "outline"}
             onClick={() => setSelectedCategory("All")}
-            className={selectedCategory === "All" ? "bg-gradient-accent text-primary-foreground" : ""}
+            className={selectedCategory === "All" ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0" : ""}
           >
             All
           </Button>
@@ -108,7 +149,7 @@ const ProductsSection = () => {
               size="sm"
               variant={selectedCategory === category.name ? "default" : "outline"}
               onClick={() => setSelectedCategory(category.name)}
-              className={selectedCategory === category.name ? "bg-gradient-accent text-primary-foreground" : ""}
+              className={selectedCategory === category.name ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0" : ""}
             >
               {category.name}
             </Button>
@@ -118,28 +159,34 @@ const ProductsSection = () => {
         {/* Products Grid */}
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-secondary" />
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-20">
             <Package className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              No Products Available
+              {searchQuery ? "No products found" : "No Products Available"}
             </h3>
             <p className="text-muted-foreground">
-              {selectedCategory === "All"
-                ? "Products will appear here once added."
-                : `No products in "${selectedCategory}" yet.`}
+              {searchQuery 
+                ? `No products match "${searchQuery}". Try a different search term.`
+                : selectedCategory === "All"
+                  ? "Products will appear here once added."
+                  : `No products in "${selectedCategory}" yet.`}
             </p>
+            {searchQuery && (
+              <Button variant="outline" onClick={() => setSearchQuery("")} className="mt-4">
+                Clear Search
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="group relative bg-card rounded-xl border border-border overflow-hidden hover:border-secondary/50 hover:shadow-card transition-all duration-300"
+                className="group relative bg-card rounded-xl border border-border overflow-hidden hover:border-emerald-400 hover:shadow-lg transition-all duration-300"
               >
-                {/* Image */}
                 <Link to={`/product/${product.id}`}>
                   <div className="relative aspect-square overflow-hidden bg-muted">
                     {product.image_url ? (
@@ -149,12 +196,11 @@ const ProductsSection = () => {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary/20 to-accent/20">
-                        <Tag className="w-10 h-10 text-secondary/40" />
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-green-50">
+                        <Tag className="w-10 h-10 text-emerald-300" />
                       </div>
                     )}
                     
-                    {/* Badges */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
                       {product.is_featured && (
                         <Badge className="bg-yellow-500/90 text-yellow-950 text-xs gap-1">
@@ -162,12 +208,11 @@ const ProductsSection = () => {
                           Featured
                         </Badge>
                       )}
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
                         {product.category}
                       </Badge>
                     </div>
 
-                    {/* View Details Overlay */}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <div className="flex items-center gap-2 text-white text-sm font-medium">
                         <Eye className="w-4 h-4" />
@@ -177,10 +222,9 @@ const ProductsSection = () => {
                   </div>
                 </Link>
 
-                {/* Info */}
                 <div className="p-3 md:p-4">
                   <Link to={`/product/${product.id}`}>
-                    <h3 className="font-semibold text-foreground text-sm md:text-base line-clamp-1 group-hover:text-secondary transition-colors">
+                    <h3 className="font-semibold text-foreground text-sm md:text-base line-clamp-1 group-hover:text-emerald-600 transition-colors">
                       {product.name}
                     </h3>
                   </Link>

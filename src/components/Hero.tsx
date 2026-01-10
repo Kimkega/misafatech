@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, Shield, Zap, Cpu, Wifi, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Shield, Zap, Cpu, Wifi, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -11,12 +11,19 @@ interface Product {
   price: number;
 }
 
+interface SiteSettings {
+  site_name: string;
+  tagline: string | null;
+}
+
 const Hero = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
 
   useEffect(() => {
     fetchFeaturedProducts();
+    fetchSettings();
   }, []);
 
   useEffect(() => {
@@ -35,6 +42,15 @@ const Hero = () => {
       .eq("is_featured", true)
       .limit(5);
     if (data) setFeaturedProducts(data);
+  };
+
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from("site_settings")
+      .select("site_name, tagline")
+      .limit(1)
+      .single();
+    if (data) setSettings(data);
   };
 
   const nextSlide = () => {
@@ -69,20 +85,22 @@ const Hero = () => {
                 )}
               </div>
             ))}
-            {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-transparent to-primary/50" />
+            {/* Smooth Green Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-secondary/70" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-transparent to-primary/60" />
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 via-transparent to-teal-800/20" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-gradient-hero" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary via-emerald-800 to-teal-700" />
         )}
         
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,200,200,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,200,200,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        {/* Decorative Elements */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.05)_1px,transparent_1px)] bg-[size:60px_60px]" />
         
-        {/* Floating Elements */}
-        <div className="absolute top-20 right-10 w-72 h-72 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+        {/* Floating Orbs */}
+        <div className="absolute top-20 right-10 w-72 h-72 bg-emerald-400/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-10 w-96 h-96 bg-teal-400/15 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/3 w-48 h-48 bg-green-300/10 rounded-full blur-2xl animate-float" />
       </div>
 
       {/* Slide Navigation */}
@@ -90,55 +108,65 @@ const Hero = () => {
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/20 transition-colors"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/20 transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
         </>
       )}
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 relative z-10 pt-20">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <div className="text-center lg:text-left animate-fade-in">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 mb-6">
-              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-              <span className="text-sm font-medium text-primary-foreground">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6">
+              <Sparkles className="w-4 h-4 text-emerald-300" />
+              <span className="text-sm font-medium text-white">
                 #1 Tech Solutions in Kenya
               </span>
             </div>
 
             {/* Headline */}
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-6 leading-tight">
-              Powering &{" "}
-              <span className="text-gradient">Protecting</span>{" "}
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              {settings?.tagline?.split(' ').slice(0, 2).join(' ') || 'Powering &'}{" "}
+              <span className="bg-gradient-to-r from-emerald-300 via-green-300 to-teal-300 bg-clip-text text-transparent">
+                {settings?.tagline?.split(' ').slice(2, 3).join(' ') || 'Protecting'}
+              </span>{" "}
+              <br className="hidden md:block" />
               Your World
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-primary-foreground/80 mb-8 max-w-xl mx-auto lg:mx-0">
-              Smart security, clean energy & automation solutions for homes, businesses & industries.
+            <p className="text-lg md:text-xl text-white/80 mb-8 max-w-xl mx-auto lg:mx-0">
+              Smart security, clean energy, tech gadgets & automation solutions for homes, businesses & industries.
             </p>
 
             {/* CTA */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
               <a href="#products">
-                <Button size="lg" className="gap-2 bg-gradient-accent hover:opacity-90 text-primary-foreground shadow-glow text-lg px-8 py-6 w-full sm:w-auto">
+                <Button 
+                  size="lg" 
+                  className="gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg shadow-emerald-500/30 text-lg px-8 py-6 w-full sm:w-auto border-0"
+                >
                   Explore Products
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </a>
               <a href="#calculator">
-                <Button size="lg" variant="outline" className="gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 text-lg px-8 py-6 w-full sm:w-auto">
-                  <Zap className="w-5 h-5" />
-                  Solar Calculator
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="gap-2 border-2 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50 text-lg px-8 py-6 w-full sm:w-auto backdrop-blur-sm"
+                >
+                  <Zap className="w-5 h-5 text-yellow-300" />
+                  <span>Energy Calculator</span>
                 </Button>
               </a>
             </div>
@@ -146,20 +174,20 @@ const Hero = () => {
             {/* Current Product Info */}
             {featuredProducts.length > 0 && featuredProducts[currentSlide] && (
               <Link to={`/product/${featuredProducts[currentSlide].id}`}>
-                <div className="inline-flex items-center gap-4 p-4 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 hover:bg-primary-foreground/20 transition-colors cursor-pointer">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-primary-foreground/20">
+                <div className="inline-flex items-center gap-4 p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all cursor-pointer group">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/20 ring-2 ring-emerald-400/50">
                     {featuredProducts[currentSlide].image_url && (
                       <img
                         src={featuredProducts[currentSlide].image_url}
                         alt={featuredProducts[currentSlide].name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                       />
                     )}
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-primary-foreground/60 mb-1">Featured Product</p>
-                    <p className="font-semibold text-primary-foreground">{featuredProducts[currentSlide].name}</p>
-                    <p className="text-secondary font-bold">KES {featuredProducts[currentSlide].price.toLocaleString()}</p>
+                    <p className="text-xs text-emerald-300 mb-1">✨ Featured Product</p>
+                    <p className="font-semibold text-white">{featuredProducts[currentSlide].name}</p>
+                    <p className="text-emerald-300 font-bold">KES {featuredProducts[currentSlide].price.toLocaleString()}</p>
                   </div>
                 </div>
               </Link>
@@ -172,10 +200,10 @@ const Hero = () => {
                   <button
                     key={index}
                     onClick={() => setCurrentSlide(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
+                    className={`h-2 rounded-full transition-all ${
                       index === currentSlide 
-                        ? 'w-8 bg-secondary' 
-                        : 'bg-primary-foreground/30 hover:bg-primary-foreground/50'
+                        ? 'w-8 bg-emerald-400' 
+                        : 'w-2 bg-white/30 hover:bg-white/50'
                     }`}
                   />
                 ))}
@@ -186,23 +214,23 @@ const Hero = () => {
           {/* Right - Feature Cards */}
           <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto lg:ml-auto">
             {[
-              { icon: Shield, title: "Security", desc: "CCTV, Alarms & Access Control", color: "from-blue-500 to-blue-600" },
-              { icon: Zap, title: "Solar Power", desc: "Panels, Batteries & Inverters", color: "from-yellow-500 to-orange-500" },
-              { icon: Cpu, title: "Automation", desc: "Smart Home & Building Control", color: "from-purple-500 to-pink-500" },
-              { icon: Wifi, title: "Networking", desc: "WiFi, Routers & IT Solutions", color: "from-green-500 to-emerald-500" },
+              { icon: Shield, title: "Security", desc: "CCTV, Alarms & Access Control", color: "from-blue-500 to-cyan-500" },
+              { icon: Zap, title: "Solar Power", desc: "Panels, Batteries & Inverters", color: "from-yellow-400 to-orange-500" },
+              { icon: Cpu, title: "Computers", desc: "Laptops, Desktops & Accessories", color: "from-violet-500 to-purple-600" },
+              { icon: Wifi, title: "Networking", desc: "WiFi, Routers & IT Solutions", color: "from-emerald-400 to-green-500" },
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group p-6 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 hover:bg-primary-foreground/20 transition-all duration-300 cursor-pointer hover:scale-105 animate-slide-up"
+                className="group p-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 cursor-pointer hover:scale-105 animate-slide-up hover:border-emerald-400/50"
                 style={{ animationDelay: `${index * 150}ms` }}
               >
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg`}>
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="font-semibold text-primary-foreground text-lg mb-1">
+                <h3 className="font-semibold text-white text-lg mb-1">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-primary-foreground/70">
+                <p className="text-sm text-white/70">
                   {feature.desc}
                 </p>
               </div>
