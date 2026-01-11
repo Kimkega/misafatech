@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, Tag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
