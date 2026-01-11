@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
-  Upload, Image as ImageIcon, Tag
+  Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
+  CheckCircle, XCircle, Truck, Clock, Eye
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -35,6 +36,8 @@ interface Product {
 interface Category {
   id: string;
   name: string;
+  description: string | null;
+  icon: string | null;
 }
 
 interface ContactInfo {
@@ -55,6 +58,36 @@ interface SiteSettings {
   tagline: string | null;
 }
 
+interface MpesaSettings {
+  id: string;
+  payment_type: string;
+  consumer_key: string | null;
+  consumer_secret: string | null;
+  shortcode: string | null;
+  passkey: string | null;
+  is_enabled: boolean;
+  allow_manual_payment: boolean;
+  environment: string;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string | null;
+  product_name: string;
+  quantity: number;
+  total_amount: number;
+  payment_method: string;
+  payment_status: string;
+  mpesa_receipt: string | null;
+  order_status: string;
+  notes: string | null;
+  shipping_address: string | null;
+  created_at: string;
+}
+
 const Admin = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,12 +95,19 @@ const Admin = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [mpesaSettings, setMpesaSettings] = useState<MpesaSettings | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [savingContact, setSavingContact] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savingMpesa, setSavingMpesa] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
   
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -79,6 +119,13 @@ const Admin = () => {
     payment_info: "",
     is_featured: false,
     is_todays_deal: false,
+  });
+
+  // Category form state
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    description: "",
+    icon: "",
   });
 
   const navigate = useNavigate();
@@ -105,17 +152,21 @@ const Admin = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes, contactRes, settingsRes] = await Promise.all([
+      const [productsRes, categoriesRes, contactRes, settingsRes, mpesaRes, ordersRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("*").order("name"),
-        supabase.from("contact_info").select("*").limit(1).single(),
-        supabase.from("site_settings").select("*").limit(1).single(),
+        supabase.from("contact_info").select("*").limit(1).maybeSingle(),
+        supabase.from("site_settings").select("*").limit(1).maybeSingle(),
+        supabase.from("mpesa_settings").select("*").limit(1).maybeSingle(),
+        supabase.from("orders").select("*").order("created_at", { ascending: false }),
       ]);
 
       if (productsRes.data) setProducts(productsRes.data);
       if (categoriesRes.data) setCategories(categoriesRes.data);
       if (contactRes.data) setContactInfo(contactRes.data);
       if (settingsRes.data) setSiteSettings(settingsRes.data);
+      if (mpesaRes.data) setMpesaSettings(mpesaRes.data as MpesaSettings);
+      if (ordersRes.data) setOrders(ordersRes.data as Order[]);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -142,6 +193,11 @@ const Admin = () => {
     setEditingProduct(null);
   };
 
+  const resetCategoryForm = () => {
+    setCategoryForm({ name: "", description: "", icon: "" });
+    setEditingCategory(null);
+  };
+
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
     setProductForm({
@@ -155,6 +211,45 @@ const Admin = () => {
       is_todays_deal: product.is_todays_deal || false,
     });
     setIsDialogOpen(true);
+  };
+
+  const openEditCategoryDialog = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.name,
+      description: category.description || "",
+      icon: category.icon || "",
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    setUploadingProductImage(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `product-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(fileName);
+
+      setProductForm({ ...productForm, image_url: publicUrl });
+      toast({ title: "Success", description: "Image uploaded successfully!" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingProductImage(false);
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -217,6 +312,56 @@ const Admin = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Deleted", description: "Product removed successfully." });
+      fetchData();
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryForm.name) {
+      toast({ title: "Missing Fields", description: "Please enter a category name.", variant: "destructive" });
+      return;
+    }
+
+    setSavingCategory(true);
+
+    const categoryData = {
+      name: categoryForm.name.trim(),
+      description: categoryForm.description.trim() || null,
+      icon: categoryForm.icon.trim() || null,
+    };
+
+    if (editingCategory) {
+      const { error } = await supabase.from("categories").update(categoryData).eq("id", editingCategory.id);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Success", description: "Category updated!" });
+        setIsCategoryDialogOpen(false);
+        resetCategoryForm();
+        fetchData();
+      }
+    } else {
+      const { error } = await supabase.from("categories").insert([categoryData]);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Success", description: "Category added!" });
+        setIsCategoryDialogOpen(false);
+        resetCategoryForm();
+        fetchData();
+      }
+    }
+    setSavingCategory(false);
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this category?")) return;
+
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: "Category removed." });
       fetchData();
     }
   };
@@ -326,26 +471,80 @@ const Admin = () => {
     setSavingSettings(false);
   };
 
+  const handleSaveMpesaSettings = async () => {
+    if (!mpesaSettings) return;
+    setSavingMpesa(true);
+
+    const { error } = await supabase
+      .from("mpesa_settings")
+      .update({
+        payment_type: mpesaSettings.payment_type,
+        consumer_key: mpesaSettings.consumer_key,
+        consumer_secret: mpesaSettings.consumer_secret,
+        shortcode: mpesaSettings.shortcode,
+        passkey: mpesaSettings.passkey,
+        is_enabled: mpesaSettings.is_enabled,
+        allow_manual_payment: mpesaSettings.allow_manual_payment,
+        environment: mpesaSettings.environment,
+      } as any)
+      .eq("id", mpesaSettings.id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Saved", description: "M-Pesa settings updated!" });
+    }
+    setSavingMpesa(false);
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, field: 'order_status' | 'payment_status', value: string) => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ [field]: value } as any)
+      .eq("id", orderId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated", description: "Order updated successfully." });
+      fetchData();
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
+      confirmed: "bg-green-100 text-green-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-emerald-100 text-emerald-800",
+      completed: "bg-emerald-100 text-emerald-800",
+      cancelled: "bg-red-100 text-red-800",
+      failed: "bg-red-100 text-red-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background">
         <Loader2 className="w-8 h-8 animate-spin text-secondary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
+      <header className="bg-gradient-to-r from-primary to-secondary text-primary-foreground sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
               {siteSettings?.logo_url ? (
                 <img src={siteSettings.logo_url} alt="Logo" className="h-10 w-auto" />
               ) : (
-                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-primary-foreground" />
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6" />
                 </div>
               )}
               <span className="font-display font-bold text-lg">Admin Dashboard</span>
@@ -353,12 +552,12 @@ const Admin = () => {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/">
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="secondary" size="sm" className="gap-2 bg-white/20 hover:bg-white/30 text-white border-0">
                 <ArrowLeft className="w-4 h-4" />
                 View Site
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-white hover:bg-white/20">
               <LogOut className="w-4 h-4" />
               Logout
             </Button>
@@ -369,7 +568,7 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="mb-8">
+          <TabsList className="mb-8 bg-card border shadow-sm">
             <TabsTrigger value="products" className="gap-2">
               <Package className="w-4 h-4" />
               Products
@@ -377,6 +576,10 @@ const Admin = () => {
             <TabsTrigger value="categories" className="gap-2">
               <Tag className="w-4 h-4" />
               Categories
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="gap-2">
+              <ShoppingBag className="w-4 h-4" />
+              Orders
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="w-4 h-4" />
@@ -388,7 +591,7 @@ const Admin = () => {
           <TabsContent value="products">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="font-display text-2xl font-bold">Products</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">Products</h2>
                 <p className="text-muted-foreground">Manage your product catalog</p>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -396,7 +599,7 @@ const Admin = () => {
                 if (!open) resetProductForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2 bg-gradient-accent hover:opacity-90">
+                  <Button className="gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600">
                     <Plus className="w-4 h-4" />
                     Add Product
                   </Button>
@@ -454,14 +657,48 @@ const Admin = () => {
                         rows={3}
                       />
                     </div>
+
+                    {/* Image Upload Section */}
                     <div className="space-y-2">
-                      <Label>Image URL</Label>
-                      <Input
-                        value={productForm.image_url}
-                        onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                        placeholder="https://example.com/image.jpg"
-                      />
+                      <Label>Product Image</Label>
+                      <div className="flex gap-4 items-start">
+                        <div className="w-24 h-24 rounded-lg bg-muted border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
+                          {productForm.image_url ? (
+                            <img src={productForm.image_url} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProductImageUpload}
+                            className="hidden"
+                            id="product-image-upload"
+                          />
+                          <label htmlFor="product-image-upload">
+                            <Button variant="outline" className="gap-2 w-full" asChild disabled={uploadingProductImage}>
+                              <span>
+                                {uploadingProductImage ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                                Upload Image
+                              </span>
+                            </Button>
+                          </label>
+                          <Input
+                            value={productForm.image_url}
+                            onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                            placeholder="Or paste image URL..."
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
+
                     <div className="space-y-2">
                       <Label>Payment Info (shown in WhatsApp message)</Label>
                       <Textarea
@@ -498,7 +735,7 @@ const Admin = () => {
 
                     <Button
                       onClick={handleSaveProduct}
-                      className="w-full bg-gradient-accent hover:opacity-90"
+                      className="w-full bg-gradient-to-r from-emerald-500 to-green-500"
                       disabled={savingProduct}
                     >
                       {savingProduct ? (
@@ -515,41 +752,31 @@ const Admin = () => {
               </Dialog>
             </div>
 
-            {/* Products Table */}
+            {/* Products Grid */}
             {products.length === 0 ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center bg-gradient-to-br from-card to-muted/30">
                 <Package className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No Products Yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Add your first product to get started.
-                </p>
+                <p className="text-muted-foreground mb-4">Add your first product to get started.</p>
               </Card>
             ) : (
               <div className="grid gap-4">
                 {products.map((product) => (
-                  <Card key={product.id} className="overflow-hidden">
+                  <Card key={product.id} className="overflow-hidden bg-gradient-to-r from-card to-card/80 hover:shadow-lg transition-shadow">
                     <CardContent className="p-0">
                       <div className="flex items-center gap-4 p-4">
-                        {/* Image */}
                         <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
                           {product.image_url ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-8 h-8 text-muted-foreground/50" />
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-green-50">
+                              <Package className="w-8 h-8 text-emerald-300" />
                             </div>
                           )}
                         </div>
-                        {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-foreground truncate">
-                              {product.name}
-                            </h3>
+                            <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
                             {product.is_featured && (
                               <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 gap-1">
                                 <Star className="w-3 h-3" /> Featured
@@ -561,14 +788,9 @@ const Admin = () => {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {product.category}
-                          </p>
-                          <p className="text-lg font-bold text-secondary">
-                            KES {product.price.toLocaleString()}
-                          </p>
+                          <p className="text-sm text-muted-foreground truncate">{product.category}</p>
+                          <p className="text-lg font-bold text-secondary">KES {product.price.toLocaleString()}</p>
                         </div>
-                        {/* Actions */}
                         <div className="flex gap-2 flex-wrap justify-end">
                           <Button
                             variant="outline"
@@ -588,11 +810,7 @@ const Admin = () => {
                           >
                             <Flame className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => openEditDialog(product)}
-                          >
+                          <Button variant="outline" size="icon" onClick={() => openEditDialog(product)}>
                             <Pencil className="w-4 h-4" />
                           </Button>
                           <Button
@@ -612,23 +830,212 @@ const Admin = () => {
             )}
           </TabsContent>
 
+          {/* Categories Tab */}
+          <TabsContent value="categories">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">Categories</h2>
+                <p className="text-muted-foreground">Manage product categories</p>
+              </div>
+              <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
+                setIsCategoryDialogOpen(open);
+                if (!open) resetCategoryForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600">
+                    <Plus className="w-4 h-4" />
+                    Add Category
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingCategory ? "Edit Category" : "Add New Category"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Category Name *</Label>
+                      <Input
+                        value={categoryForm.name}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                        placeholder="e.g., Solar Panels"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        value={categoryForm.description}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                        placeholder="Category description..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Icon (Lucide icon name)</Label>
+                      <Input
+                        value={categoryForm.icon}
+                        onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
+                        placeholder="e.g., sun, battery, cpu"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSaveCategory}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-green-500"
+                      disabled={savingCategory}
+                    >
+                      {savingCategory ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          {editingCategory ? "Update Category" : "Add Category"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {categories.length === 0 ? (
+              <Card className="p-12 text-center bg-gradient-to-br from-card to-muted/30">
+                <Tag className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Categories Yet</h3>
+                <p className="text-muted-foreground mb-4">Add your first category to organize products.</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categories.map((category) => (
+                  <Card key={category.id} className="bg-gradient-to-br from-card to-muted/30 hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
+                          {category.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
+                          )}
+                          {category.icon && (
+                            <Badge variant="outline" className="mt-2 text-xs">{category.icon}</Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEditCategoryDialog(category)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteCategory(category.id)}
+                            className="text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders">
+            <div className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-foreground">Orders</h2>
+              <p className="text-muted-foreground">Manage customer orders</p>
+            </div>
+
+            {orders.length === 0 ? (
+              <Card className="p-12 text-center bg-gradient-to-br from-card to-muted/30">
+                <ShoppingBag className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Orders Yet</h3>
+                <p className="text-muted-foreground">Orders will appear here when customers purchase.</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <Card key={order.id} className="bg-gradient-to-r from-card to-card/80">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-mono font-semibold text-foreground">{order.order_number}</span>
+                            <Badge className={getStatusColor(order.order_status)}>{order.order_status}</Badge>
+                            <Badge className={getStatusColor(order.payment_status)}>{order.payment_status}</Badge>
+                          </div>
+                          <p className="font-medium text-foreground">{order.product_name} x {order.quantity}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.customer_name} • {order.customer_phone}
+                          </p>
+                          <p className="font-bold text-secondary mt-1">KES {order.total_amount.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(order.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 lg:w-48">
+                          <Select
+                            value={order.order_status}
+                            onValueChange={(value) => handleUpdateOrderStatus(order.id, 'order_status', value)}
+                          >
+                            <SelectTrigger className="text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="processing">Processing</SelectItem>
+                              <SelectItem value="shipped">Shipped</SelectItem>
+                              <SelectItem value="delivered">Delivered</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={order.payment_status}
+                            onValueChange={(value) => handleUpdateOrderStatus(order.id, 'payment_status', value)}
+                          >
+                            <SelectTrigger className="text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Payment Pending</SelectItem>
+                              <SelectItem value="processing">Processing</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="failed">Failed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {order.shipping_address && (
+                        <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                          📍 {order.shipping_address}
+                        </p>
+                      )}
+                      {order.notes && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          📝 {order.notes}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             {/* Site Settings */}
-            <Card>
+            <Card className="bg-gradient-to-br from-card to-muted/30">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ImageIcon className="w-5 h-5" />
                   Site Settings
                 </CardTitle>
-                <CardDescription>
-                  Update your logo and site information
-                </CardDescription>
+                <CardDescription>Update your logo and site information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {siteSettings && (
                   <>
-                    {/* Logo Upload */}
                     <div className="space-y-4">
                       <Label>Logo</Label>
                       <div className="flex items-center gap-4">
@@ -640,28 +1047,16 @@ const Admin = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoUpload}
-                            className="hidden"
-                            id="logo-upload"
-                          />
+                          <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" id="logo-upload" />
                           <label htmlFor="logo-upload">
                             <Button variant="outline" className="gap-2" asChild disabled={uploadingLogo}>
                               <span>
-                                {uploadingLogo ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Upload className="w-4 h-4" />
-                                )}
+                                {uploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                 Upload Logo
                               </span>
                             </Button>
                           </label>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Recommended: 200x200px PNG or SVG
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">Recommended: 200x200px PNG or SVG</p>
                         </div>
                       </div>
                     </div>
@@ -671,9 +1066,7 @@ const Admin = () => {
                         <Label>Site Name</Label>
                         <Input
                           value={siteSettings.site_name}
-                          onChange={(e) =>
-                            setSiteSettings({ ...siteSettings, site_name: e.target.value })
-                          }
+                          onChange={(e) => setSiteSettings({ ...siteSettings, site_name: e.target.value })}
                           placeholder="MISAFA TECHNOLOGIES"
                         />
                       </div>
@@ -681,24 +1074,14 @@ const Admin = () => {
                         <Label>Tagline</Label>
                         <Input
                           value={siteSettings.tagline || ""}
-                          onChange={(e) =>
-                            setSiteSettings({ ...siteSettings, tagline: e.target.value })
-                          }
+                          onChange={(e) => setSiteSettings({ ...siteSettings, tagline: e.target.value })}
                           placeholder="Powering, Protecting & Automating the Future"
                         />
                       </div>
                     </div>
 
-                    <Button
-                      onClick={handleSaveSettings}
-                      className="bg-gradient-accent hover:opacity-90"
-                      disabled={savingSettings}
-                    >
-                      {savingSettings ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
+                    <Button onClick={handleSaveSettings} className="bg-gradient-to-r from-emerald-500 to-green-500" disabled={savingSettings}>
+                      {savingSettings ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                       Save Settings
                     </Button>
                   </>
@@ -706,13 +1089,133 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Contact & Payment Settings */}
-            <Card>
+            {/* M-Pesa Settings */}
+            <Card className="bg-gradient-to-br from-card to-muted/30">
               <CardHeader>
-                <CardTitle>Contact & Payment Settings</CardTitle>
-                <CardDescription>
-                  Update your contact information and payment details. These will be shown to customers.
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  M-Pesa Daraja Settings
+                </CardTitle>
+                <CardDescription>Configure M-Pesa Express integration (STK Push)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {mpesaSettings && (
+                  <>
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                      <div>
+                        <Label className="text-base">Enable M-Pesa Express</Label>
+                        <p className="text-sm text-muted-foreground">Allow automatic STK push for payments</p>
+                      </div>
+                      <Switch
+                        checked={mpesaSettings.is_enabled}
+                        onCheckedChange={(checked) => setMpesaSettings({ ...mpesaSettings, is_enabled: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                      <div>
+                        <Label className="text-base">Allow Manual Payment</Label>
+                        <p className="text-sm text-muted-foreground">Let customers pay manually via Till/Paybill</p>
+                      </div>
+                      <Switch
+                        checked={mpesaSettings.allow_manual_payment}
+                        onCheckedChange={(checked) => setMpesaSettings({ ...mpesaSettings, allow_manual_payment: checked })}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Payment Type</Label>
+                        <Select
+                          value={mpesaSettings.payment_type}
+                          onValueChange={(value) => setMpesaSettings({ ...mpesaSettings, payment_type: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="paybill">Paybill</SelectItem>
+                            <SelectItem value="till">Till (Buy Goods)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {mpesaSettings.payment_type === 'paybill' 
+                            ? 'Paybill: Customer pays to business with account number' 
+                            : 'Till: Customer buys goods directly (no account number needed)'}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Environment</Label>
+                        <Select
+                          value={mpesaSettings.environment}
+                          onValueChange={(value) => setMpesaSettings({ ...mpesaSettings, environment: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
+                            <SelectItem value="production">Production (Live)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Consumer Key</Label>
+                        <Input
+                          type="password"
+                          value={mpesaSettings.consumer_key || ""}
+                          onChange={(e) => setMpesaSettings({ ...mpesaSettings, consumer_key: e.target.value })}
+                          placeholder="From Daraja portal"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Consumer Secret</Label>
+                        <Input
+                          type="password"
+                          value={mpesaSettings.consumer_secret || ""}
+                          onChange={(e) => setMpesaSettings({ ...mpesaSettings, consumer_secret: e.target.value })}
+                          placeholder="From Daraja portal"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Shortcode ({mpesaSettings.payment_type === 'paybill' ? 'Paybill' : 'Till'} Number)</Label>
+                        <Input
+                          value={mpesaSettings.shortcode || ""}
+                          onChange={(e) => setMpesaSettings({ ...mpesaSettings, shortcode: e.target.value })}
+                          placeholder={mpesaSettings.payment_type === 'paybill' ? '174379' : '123456'}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Passkey</Label>
+                        <Input
+                          type="password"
+                          value={mpesaSettings.passkey || ""}
+                          onChange={(e) => setMpesaSettings({ ...mpesaSettings, passkey: e.target.value })}
+                          placeholder="From Daraja portal"
+                        />
+                      </div>
+                    </div>
+
+                    <Button onClick={handleSaveMpesaSettings} className="bg-gradient-to-r from-emerald-500 to-green-500" disabled={savingMpesa}>
+                      {savingMpesa ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                      Save M-Pesa Settings
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact & Payment Settings */}
+            <Card className="bg-gradient-to-br from-card to-muted/30">
+              <CardHeader>
+                <CardTitle>Contact & Payment Details</CardTitle>
+                <CardDescription>Update your contact information and manual payment details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {contactInfo && (
@@ -722,9 +1225,7 @@ const Admin = () => {
                         <Label>WhatsApp Number *</Label>
                         <Input
                           value={contactInfo.whatsapp_number}
-                          onChange={(e) =>
-                            setContactInfo({ ...contactInfo, whatsapp_number: e.target.value })
-                          }
+                          onChange={(e) => setContactInfo({ ...contactInfo, whatsapp_number: e.target.value })}
                           placeholder="+254700000000"
                         />
                       </div>
@@ -732,9 +1233,7 @@ const Admin = () => {
                         <Label>Phone Number</Label>
                         <Input
                           value={contactInfo.phone || ""}
-                          onChange={(e) =>
-                            setContactInfo({ ...contactInfo, phone: e.target.value })
-                          }
+                          onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
                           placeholder="+254700000000"
                         />
                       </div>
@@ -744,9 +1243,7 @@ const Admin = () => {
                         <Label>Email</Label>
                         <Input
                           value={contactInfo.email || ""}
-                          onChange={(e) =>
-                            setContactInfo({ ...contactInfo, email: e.target.value })
-                          }
+                          onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
                           placeholder="info@misafatech.com"
                         />
                       </div>
@@ -754,24 +1251,20 @@ const Admin = () => {
                         <Label>Address</Label>
                         <Input
                           value={contactInfo.address || ""}
-                          onChange={(e) =>
-                            setContactInfo({ ...contactInfo, address: e.target.value })
-                          }
+                          onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
                           placeholder="Nairobi, Kenya"
                         />
                       </div>
                     </div>
 
                     <div className="border-t pt-6">
-                      <h4 className="font-semibold mb-4">Payment Details (M-Pesa)</h4>
+                      <h4 className="font-semibold mb-4">Manual M-Pesa Payment Details</h4>
                       <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label>Till Number</Label>
+                          <Label>Till Number (Buy Goods)</Label>
                           <Input
                             value={contactInfo.till_number || ""}
-                            onChange={(e) =>
-                              setContactInfo({ ...contactInfo, till_number: e.target.value })
-                            }
+                            onChange={(e) => setContactInfo({ ...contactInfo, till_number: e.target.value })}
                             placeholder="123456"
                           />
                         </div>
@@ -779,9 +1272,7 @@ const Admin = () => {
                           <Label>Paybill Number</Label>
                           <Input
                             value={contactInfo.paybill_number || ""}
-                            onChange={(e) =>
-                              setContactInfo({ ...contactInfo, paybill_number: e.target.value })
-                            }
+                            onChange={(e) => setContactInfo({ ...contactInfo, paybill_number: e.target.value })}
                             placeholder="789012"
                           />
                         </div>
@@ -789,25 +1280,15 @@ const Admin = () => {
                           <Label>Account Number</Label>
                           <Input
                             value={contactInfo.account_number || ""}
-                            onChange={(e) =>
-                              setContactInfo({ ...contactInfo, account_number: e.target.value })
-                            }
+                            onChange={(e) => setContactInfo({ ...contactInfo, account_number: e.target.value })}
                             placeholder="MISAFA"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <Button
-                      onClick={handleSaveContact}
-                      className="bg-gradient-accent hover:opacity-90"
-                      disabled={savingContact}
-                    >
-                      {savingContact ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
+                    <Button onClick={handleSaveContact} className="bg-gradient-to-r from-emerald-500 to-green-500" disabled={savingContact}>
+                      {savingContact ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                       Save Contact Info
                     </Button>
                   </>

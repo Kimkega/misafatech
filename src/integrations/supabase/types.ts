@@ -77,6 +77,119 @@ export type Database = {
         }
         Relationships: []
       }
+      mpesa_settings: {
+        Row: {
+          allow_manual_payment: boolean | null
+          callback_url: string | null
+          consumer_key: string | null
+          consumer_secret: string | null
+          created_at: string
+          environment: string | null
+          id: string
+          is_enabled: boolean | null
+          passkey: string | null
+          payment_type: string
+          shortcode: string | null
+          updated_at: string
+        }
+        Insert: {
+          allow_manual_payment?: boolean | null
+          callback_url?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string
+          environment?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          passkey?: string | null
+          payment_type?: string
+          shortcode?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allow_manual_payment?: boolean | null
+          callback_url?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string
+          environment?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          passkey?: string | null
+          payment_type?: string
+          shortcode?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          id: string
+          mpesa_receipt: string | null
+          notes: string | null
+          order_number: string
+          order_status: string
+          payment_method: string
+          payment_status: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          shipping_address: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          id?: string
+          mpesa_receipt?: string | null
+          notes?: string | null
+          order_number: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          shipping_address?: string | null
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          mpesa_receipt?: string | null
+          notes?: string | null
+          order_number?: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          shipping_address?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string

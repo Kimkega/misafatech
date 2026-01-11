@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Checkout from "@/components/Checkout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -16,7 +17,7 @@ import {
   Loader2,
   Flame,
   Share2,
-  Copy
+  ShoppingCart
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,6 +45,7 @@ const ProductDetails = () => {
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -146,8 +148,16 @@ const ProductDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-muted/30 to-background">
       <Navbar />
+      
+      {product && (
+        <Checkout
+          product={{ id: product.id, name: product.name, price: product.price, image_url: product.image_url }}
+          isOpen={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+        />
+      )}
       
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
@@ -237,15 +247,26 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {/* Buy Button */}
-              <Button
-                onClick={handleWhatsAppBuy}
-                size="lg"
-                className="w-full gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 mb-8 shadow-lg"
-              >
-                <MessageCircle className="w-6 h-6" />
-                Order via WhatsApp
-              </Button>
+              {/* Buy Buttons */}
+              <div className="flex gap-3 mb-8">
+                <Button
+                  onClick={() => setCheckoutOpen(true)}
+                  size="lg"
+                  className="flex-1 gap-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white text-lg py-6 shadow-lg"
+                >
+                  <ShoppingCart className="w-6 h-6" />
+                  Buy Now
+                </Button>
+                <Button
+                  onClick={handleWhatsAppBuy}
+                  size="lg"
+                  variant="outline"
+                  className="gap-2 py-6 border-green-500 text-green-600 hover:bg-green-50"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  WhatsApp
+                </Button>
+              </div>
 
               {/* Trust Badges */}
               <div className="grid grid-cols-3 gap-4">
