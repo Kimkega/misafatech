@@ -21,6 +21,7 @@ export type Database = {
           icon: string | null
           id: string
           name: string
+          parent_id: string | null
         }
         Insert: {
           created_at?: string
@@ -28,6 +29,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name: string
+          parent_id?: string | null
         }
         Update: {
           created_at?: string
@@ -35,8 +37,17 @@ export type Database = {
           icon?: string | null
           id?: string
           name?: string
+          parent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_info: {
         Row: {
@@ -74,6 +85,51 @@ export type Database = {
           till_number?: string | null
           updated_at?: string
           whatsapp_number?: string
+        }
+        Relationships: []
+      }
+      email_settings: {
+        Row: {
+          admin_email: string | null
+          created_at: string
+          customer_notification_enabled: boolean | null
+          from_email: string | null
+          from_name: string | null
+          id: string
+          order_notification_enabled: boolean | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_user: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_email?: string | null
+          created_at?: string
+          customer_notification_enabled?: boolean | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          order_notification_enabled?: boolean | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_email?: string | null
+          created_at?: string
+          customer_notification_enabled?: boolean | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          order_notification_enabled?: boolean | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
