@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Shield, LogIn, LogOut, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Menu, X, Shield, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
 
 interface SiteSettings {
   logo_url: string | null;
@@ -12,20 +10,10 @@ interface SiteSettings {
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
     fetchSettings();
   }, []);
 
@@ -44,11 +32,6 @@ const Navbar = () => {
       .limit(1)
       .single();
     if (data) setSettings(data);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
   };
 
   const navLinks = [
@@ -110,42 +93,6 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            {user ? (
-              <>
-                <Link to="/admin">
-                  <Button 
-                    variant={scrolled ? "outline" : "secondary"} 
-                    size="sm"
-                    className={!scrolled ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' : ''}
-                  >
-                    Dashboard
-                  </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className={`gap-2 ${!scrolled && 'text-white hover:bg-white/10'}`}
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <Link to="/auth">
-                <Button 
-                  size="sm" 
-                  className="gap-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white border-0"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-          </div>
-
           {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2 relative z-50"
@@ -174,33 +121,6 @@ const Navbar = () => {
                   {link.name}
                 </a>
               ))}
-              <div className="pt-4 border-t border-border px-2 mt-2">
-                {user ? (
-                  <div className="flex flex-col gap-2">
-                    <Link to="/admin" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" size="sm" className="w-full">
-                        Dashboard
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="gap-2 w-full"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </Button>
-                  </div>
-                ) : (
-                  <Link to="/auth" onClick={() => setIsOpen(false)}>
-                    <Button size="sm" className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white">
-                      <LogIn className="w-4 h-4" />
-                      Admin Login
-                    </Button>
-                  </Link>
-                )}
-              </div>
             </div>
           </div>
         )}

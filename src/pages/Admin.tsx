@@ -16,7 +16,7 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  CheckCircle, XCircle, Truck, Clock, Eye
+  Mail, ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -38,6 +38,7 @@ interface Category {
   name: string;
   description: string | null;
   icon: string | null;
+  parent_id: string | null;
 }
 
 interface ContactInfo {
@@ -68,6 +69,20 @@ interface MpesaSettings {
   is_enabled: boolean;
   allow_manual_payment: boolean;
   environment: string;
+  callback_url: string | null;
+}
+
+interface EmailSettings {
+  id: string;
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_user: string | null;
+  smtp_password: string | null;
+  from_email: string | null;
+  from_name: string | null;
+  admin_email: string | null;
+  order_notification_enabled: boolean;
+  customer_notification_enabled: boolean;
 }
 
 interface Order {
@@ -96,6 +111,7 @@ const Admin = () => {
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [mpesaSettings, setMpesaSettings] = useState<MpesaSettings | null>(null);
+  const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -105,11 +121,11 @@ const Admin = () => {
   const [savingProduct, setSavingProduct] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingMpesa, setSavingMpesa] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
   
-  // Product form state
   const [productForm, setProductForm] = useState({
     name: "",
     description: "",
@@ -121,11 +137,11 @@ const Admin = () => {
     is_todays_deal: false,
   });
 
-  // Category form state
   const [categoryForm, setCategoryForm] = useState({
     name: "",
     description: "",
     icon: "",
+    parent_id: "",
   });
 
   const navigate = useNavigate();
@@ -152,20 +168,22 @@ const Admin = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes, contactRes, settingsRes, mpesaRes, ordersRes] = await Promise.all([
+      const [productsRes, categoriesRes, contactRes, settingsRes, mpesaRes, emailRes, ordersRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("*").order("name"),
         supabase.from("contact_info").select("*").limit(1).maybeSingle(),
         supabase.from("site_settings").select("*").limit(1).maybeSingle(),
         supabase.from("mpesa_settings").select("*").limit(1).maybeSingle(),
+        supabase.from("email_settings").select("*").limit(1).maybeSingle(),
         supabase.from("orders").select("*").order("created_at", { ascending: false }),
       ]);
 
       if (productsRes.data) setProducts(productsRes.data);
-      if (categoriesRes.data) setCategories(categoriesRes.data);
+      if (categoriesRes.data) setCategories(categoriesRes.data as Category[]);
       if (contactRes.data) setContactInfo(contactRes.data);
       if (settingsRes.data) setSiteSettings(settingsRes.data);
       if (mpesaRes.data) setMpesaSettings(mpesaRes.data as MpesaSettings);
+      if (emailRes.data) setEmailSettings(emailRes.data as EmailSettings);
       if (ordersRes.data) setOrders(ordersRes.data as Order[]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -194,7 +212,7 @@ const Admin = () => {
   };
 
   const resetCategoryForm = () => {
-    setCategoryForm({ name: "", description: "", icon: "" });
+    setCategoryForm({ name: "", description: "", icon: "", parent_id: "" });
     setEditingCategory(null);
   };
 
@@ -219,6 +237,7 @@ const Admin = () => {
       name: category.name,
       description: category.description || "",
       icon: category.icon || "",
+      parent_id: category.parent_id || "",
     });
     setIsCategoryDialogOpen(true);
   };
@@ -328,6 +347,7 @@ const Admin = () => {
       name: categoryForm.name.trim(),
       description: categoryForm.description.trim() || null,
       icon: categoryForm.icon.trim() || null,
+      parent_id: categoryForm.parent_id || null,
     };
 
     if (editingCategory) {
@@ -486,6 +506,7 @@ const Admin = () => {
         is_enabled: mpesaSettings.is_enabled,
         allow_manual_payment: mpesaSettings.allow_manual_payment,
         environment: mpesaSettings.environment,
+        callback_url: mpesaSettings.callback_url,
       } as any)
       .eq("id", mpesaSettings.id);
 
@@ -495,6 +516,33 @@ const Admin = () => {
       toast({ title: "Saved", description: "M-Pesa settings updated!" });
     }
     setSavingMpesa(false);
+  };
+
+  const handleSaveEmailSettings = async () => {
+    if (!emailSettings) return;
+    setSavingEmail(true);
+
+    const { error } = await supabase
+      .from("email_settings")
+      .update({
+        smtp_host: emailSettings.smtp_host,
+        smtp_port: emailSettings.smtp_port,
+        smtp_user: emailSettings.smtp_user,
+        smtp_password: emailSettings.smtp_password,
+        from_email: emailSettings.from_email,
+        from_name: emailSettings.from_name,
+        admin_email: emailSettings.admin_email,
+        order_notification_enabled: emailSettings.order_notification_enabled,
+        customer_notification_enabled: emailSettings.customer_notification_enabled,
+      } as any)
+      .eq("id", emailSettings.id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Saved", description: "Email settings updated!" });
+    }
+    setSavingEmail(false);
   };
 
   const handleUpdateOrderStatus = async (orderId: string, field: 'order_status' | 'payment_status', value: string) => {
@@ -523,6 +571,21 @@ const Admin = () => {
       failed: "bg-red-100 text-red-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  // Get parent categories (categories without parent_id)
+  const parentCategories = categories.filter(c => !c.parent_id);
+  
+  // Get subcategories grouped by parent
+  const getSubcategories = (parentId: string) => categories.filter(c => c.parent_id === parentId);
+
+  // Get all category names for product form (including subcategories)
+  const getCategoryDisplayName = (cat: Category) => {
+    if (cat.parent_id) {
+      const parent = categories.find(c => c.id === cat.parent_id);
+      return parent ? `${parent.name} → ${cat.name}` : cat.name;
+    }
+    return cat.name;
   };
 
   if (loading) {
@@ -568,7 +631,7 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="mb-8 bg-card border shadow-sm">
+          <TabsList className="mb-8 bg-card border shadow-sm flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="products" className="gap-2">
               <Package className="w-4 h-4" />
               Products
@@ -641,7 +704,7 @@ const Admin = () => {
                           <SelectContent>
                             {categories.map((cat) => (
                               <SelectItem key={cat.id} value={cat.name}>
-                                {cat.name}
+                                {getCategoryDisplayName(cat)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -775,7 +838,7 @@ const Admin = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
                             {product.is_featured && (
                               <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 gap-1">
@@ -835,7 +898,7 @@ const Admin = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="font-display text-2xl font-bold text-foreground">Categories</h2>
-                <p className="text-muted-foreground">Manage product categories</p>
+                <p className="text-muted-foreground">Manage categories and subcategories</p>
               </div>
               <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
                 setIsCategoryDialogOpen(open);
@@ -859,6 +922,27 @@ const Admin = () => {
                         onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
                         placeholder="e.g., Solar Panels"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Parent Category (for subcategory)</Label>
+                      <Select
+                        value={categoryForm.parent_id}
+                        onValueChange={(value) => setCategoryForm({ ...categoryForm, parent_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="None (top-level category)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None (top-level category)</SelectItem>
+                          {parentCategories
+                            .filter(c => c.id !== editingCategory?.id)
+                            .map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
@@ -903,37 +987,70 @@ const Admin = () => {
                 <p className="text-muted-foreground mb-4">Add your first category to organize products.</p>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categories.map((category) => (
-                  <Card key={category.id} className="bg-gradient-to-br from-card to-muted/30 hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
-                          {category.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
-                          )}
-                          {category.icon && (
-                            <Badge variant="outline" className="mt-2 text-xs">{category.icon}</Badge>
-                          )}
+              <div className="space-y-4">
+                {parentCategories.map((category) => {
+                  const subcats = getSubcategories(category.id);
+                  return (
+                    <Card key={category.id} className="bg-gradient-to-br from-card to-muted/30 hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
+                            {category.description && (
+                              <p className="text-sm text-muted-foreground">{category.description}</p>
+                            )}
+                            {category.icon && (
+                              <Badge variant="outline" className="mt-2 text-xs">{category.icon}</Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEditCategoryDialog(category)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditCategoryDialog(category)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        
+                        {/* Subcategories */}
+                        {subcats.length > 0 && (
+                          <div className="mt-4 pl-4 border-l-2 border-emerald-200 space-y-2">
+                            {subcats.map((subcat) => (
+                              <div key={subcat.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-sm font-medium">{subcat.name}</span>
+                                  {subcat.icon && (
+                                    <Badge variant="outline" className="text-xs">{subcat.icon}</Badge>
+                                  )}
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditCategoryDialog(subcat)}>
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteCategory(subcat.id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -958,7 +1075,7 @@ const Admin = () => {
                     <CardContent className="p-4">
                       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="font-mono font-semibold text-foreground">{order.order_number}</span>
                             <Badge className={getStatusColor(order.order_status)}>{order.order_status}</Badge>
                             <Badge className={getStatusColor(order.payment_status)}>{order.payment_status}</Badge>
@@ -966,11 +1083,15 @@ const Admin = () => {
                           <p className="font-medium text-foreground">{order.product_name} x {order.quantity}</p>
                           <p className="text-sm text-muted-foreground">
                             {order.customer_name} • {order.customer_phone}
+                            {order.customer_email && ` • ${order.customer_email}`}
                           </p>
                           <p className="font-bold text-secondary mt-1">KES {order.total_amount.toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {new Date(order.created_at).toLocaleString()}
                           </p>
+                          {order.mpesa_receipt && (
+                            <p className="text-xs text-emerald-600 mt-1">M-Pesa: {order.mpesa_receipt}</p>
+                          )}
                         </div>
                         <div className="flex flex-col gap-2 lg:w-48">
                           <Select
@@ -1103,8 +1224,8 @@ const Admin = () => {
                   <>
                     <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
                       <div>
-                        <Label className="text-base">Enable M-Pesa Express</Label>
-                        <p className="text-sm text-muted-foreground">Allow automatic STK push for payments</p>
+                        <Label className="text-base">Enable M-Pesa Express (STK Push)</Label>
+                        <p className="text-sm text-muted-foreground">Automatic payment prompt sent to customer's phone</p>
                       </div>
                       <Switch
                         checked={mpesaSettings.is_enabled}
@@ -1134,14 +1255,14 @@ const Admin = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="paybill">Paybill</SelectItem>
-                            <SelectItem value="till">Till (Buy Goods)</SelectItem>
+                            <SelectItem value="paybill">Paybill (CustomerPayBillOnline)</SelectItem>
+                            <SelectItem value="till">Till/Buy Goods (CustomerBuyGoodsOnline)</SelectItem>
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
                           {mpesaSettings.payment_type === 'paybill' 
-                            ? 'Paybill: Customer pays to business with account number' 
-                            : 'Till: Customer buys goods directly (no account number needed)'}
+                            ? 'Paybill: Shortcode is Paybill Number. Customer enters Account Number.' 
+                            : 'Till/Buy Goods: Shortcode is Till Number. No account number needed.'}
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -1184,7 +1305,7 @@ const Admin = () => {
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Shortcode ({mpesaSettings.payment_type === 'paybill' ? 'Paybill' : 'Till'} Number)</Label>
+                        <Label>Shortcode ({mpesaSettings.payment_type === 'paybill' ? 'Paybill Number' : 'Till Number'})</Label>
                         <Input
                           value={mpesaSettings.shortcode || ""}
                           onChange={(e) => setMpesaSettings({ ...mpesaSettings, shortcode: e.target.value })}
@@ -1192,7 +1313,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Passkey</Label>
+                        <Label>Passkey (Lipa Na M-Pesa Online Passkey)</Label>
                         <Input
                           type="password"
                           value={mpesaSettings.passkey || ""}
@@ -1200,6 +1321,18 @@ const Admin = () => {
                           placeholder="From Daraja portal"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Callback URL (Optional)</Label>
+                      <Input
+                        value={mpesaSettings.callback_url || ""}
+                        onChange={(e) => setMpesaSettings({ ...mpesaSettings, callback_url: e.target.value })}
+                        placeholder="Leave empty to use default"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        URL that receives payment confirmation from Safaricom. Leave empty to use automatic callback.
+                      </p>
                     </div>
 
                     <Button onClick={handleSaveMpesaSettings} className="bg-gradient-to-r from-emerald-500 to-green-500" disabled={savingMpesa}>
@@ -1211,22 +1344,139 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Contact & Payment Settings */}
+            {/* Email Settings */}
             <Card className="bg-gradient-to-br from-card to-muted/30">
               <CardHeader>
-                <CardTitle>Contact & Payment Details</CardTitle>
-                <CardDescription>Update your contact information and manual payment details</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  Email Notifications
+                </CardTitle>
+                <CardDescription>Configure SMTP for order notifications</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {emailSettings && (
+                  <>
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                      <div>
+                        <Label className="text-base">Admin Order Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Receive email when new orders are placed</p>
+                      </div>
+                      <Switch
+                        checked={emailSettings.order_notification_enabled}
+                        onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, order_notification_enabled: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                      <div>
+                        <Label className="text-base">Customer Confirmation Emails</Label>
+                        <p className="text-sm text-muted-foreground">Send order confirmation to customers</p>
+                      </div>
+                      <Switch
+                        checked={emailSettings.customer_notification_enabled}
+                        onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, customer_notification_enabled: checked })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Admin Email (receives order notifications)</Label>
+                      <Input
+                        type="email"
+                        value={emailSettings.admin_email || ""}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, admin_email: e.target.value })}
+                        placeholder="admin@yourstore.com"
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-4">SMTP Configuration</h4>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>SMTP Host</Label>
+                          <Input
+                            value={emailSettings.smtp_host || ""}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, smtp_host: e.target.value })}
+                            placeholder="smtp.gmail.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>SMTP Port</Label>
+                          <Input
+                            type="number"
+                            value={emailSettings.smtp_port || 587}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, smtp_port: parseInt(e.target.value) })}
+                            placeholder="587"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4 mt-4">
+                        <div className="space-y-2">
+                          <Label>SMTP Username</Label>
+                          <Input
+                            value={emailSettings.smtp_user || ""}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, smtp_user: e.target.value })}
+                            placeholder="your-email@gmail.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>SMTP Password / App Password</Label>
+                          <Input
+                            type="password"
+                            value={emailSettings.smtp_password || ""}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, smtp_password: e.target.value })}
+                            placeholder="••••••••"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4 mt-4">
+                        <div className="space-y-2">
+                          <Label>From Email</Label>
+                          <Input
+                            type="email"
+                            value={emailSettings.from_email || ""}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, from_email: e.target.value })}
+                            placeholder="noreply@yourstore.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>From Name</Label>
+                          <Input
+                            value={emailSettings.from_name || ""}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, from_name: e.target.value })}
+                            placeholder="Your Store Name"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button onClick={handleSaveEmailSettings} className="bg-gradient-to-r from-emerald-500 to-green-500" disabled={savingEmail}>
+                      {savingEmail ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                      Save Email Settings
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact Info */}
+            <Card className="bg-gradient-to-br from-card to-muted/30">
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+                <CardDescription>Update your contact details and payment info</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 {contactInfo && (
                   <>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>WhatsApp Number *</Label>
+                        <Label>WhatsApp Number</Label>
                         <Input
                           value={contactInfo.whatsapp_number}
                           onChange={(e) => setContactInfo({ ...contactInfo, whatsapp_number: e.target.value })}
-                          placeholder="+254700000000"
+                          placeholder="+254712345678"
                         />
                       </div>
                       <div className="space-y-2">
@@ -1238,13 +1488,14 @@ const Admin = () => {
                         />
                       </div>
                     </div>
+
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Email</Label>
                         <Input
                           value={contactInfo.email || ""}
                           onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
-                          placeholder="info@misafatech.com"
+                          placeholder="info@example.com"
                         />
                       </div>
                       <div className="space-y-2">
@@ -1257,11 +1508,11 @@ const Admin = () => {
                       </div>
                     </div>
 
-                    <div className="border-t pt-6">
-                      <h4 className="font-semibold mb-4">Manual M-Pesa Payment Details</h4>
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-4">Manual Payment Details (shown to customers)</h4>
                       <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label>Till Number (Buy Goods)</Label>
+                          <Label>Till Number</Label>
                           <Input
                             value={contactInfo.till_number || ""}
                             onChange={(e) => setContactInfo({ ...contactInfo, till_number: e.target.value })}
@@ -1281,7 +1532,7 @@ const Admin = () => {
                           <Input
                             value={contactInfo.account_number || ""}
                             onChange={(e) => setContactInfo({ ...contactInfo, account_number: e.target.value })}
-                            placeholder="MISAFA"
+                            placeholder="Your Name/ID"
                           />
                         </div>
                       </div>

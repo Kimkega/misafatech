@@ -1,1 +1,10 @@
 project_id = "zzquxczmrryebglowtna"
+
+[functions.mpesa-stk-push]
+verify_jwt = false
+
+[functions.mpesa-callback]
+verify_jwt = false
+
+[functions.send-order-email]
+verify_jwt = false
