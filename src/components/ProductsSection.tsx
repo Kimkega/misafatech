@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Package, MessageCircle, Star, Tag, Eye, Search, X } from "lucide-react";
+import { Loader2, Package, MessageCircle, Star, Tag, Eye, Search, X, ShoppingCart } from "lucide-react";
 
 interface Product {
   id: string;
