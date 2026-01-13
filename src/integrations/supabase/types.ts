@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      cart_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          session_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -85,6 +123,39 @@ export type Database = {
           till_number?: string | null
           updated_at?: string
           whatsapp_number?: string
+        }
+        Relationships: []
+      }
+      delivery_zones: {
+        Row: {
+          county: string
+          courier_available: string[] | null
+          created_at: string
+          delivery_fee: number | null
+          estimated_days: number | null
+          id: string
+          sub_county: string
+          town: string | null
+        }
+        Insert: {
+          county: string
+          courier_available?: string[] | null
+          created_at?: string
+          delivery_fee?: number | null
+          estimated_days?: number | null
+          id?: string
+          sub_county: string
+          town?: string | null
+        }
+        Update: {
+          county?: string
+          courier_available?: string[] | null
+          created_at?: string
+          delivery_fee?: number | null
+          estimated_days?: number | null
+          id?: string
+          sub_county?: string
+          town?: string | null
         }
         Relationships: []
       }
@@ -180,10 +251,14 @@ export type Database = {
       }
       orders: {
         Row: {
+          county: string | null
+          courier: string | null
           created_at: string
           customer_email: string | null
           customer_name: string
           customer_phone: string
+          delivery_fee: number | null
+          estimated_delivery: string | null
           id: string
           mpesa_receipt: string | null
           notes: string | null
@@ -195,14 +270,20 @@ export type Database = {
           product_name: string
           quantity: number
           shipping_address: string | null
+          sub_county: string | null
           total_amount: number
+          town: string | null
           updated_at: string
         }
         Insert: {
+          county?: string | null
+          courier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name: string
           customer_phone: string
+          delivery_fee?: number | null
+          estimated_delivery?: string | null
           id?: string
           mpesa_receipt?: string | null
           notes?: string | null
@@ -214,14 +295,20 @@ export type Database = {
           product_name: string
           quantity?: number
           shipping_address?: string | null
+          sub_county?: string | null
           total_amount: number
+          town?: string | null
           updated_at?: string
         }
         Update: {
+          county?: string | null
+          courier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string
+          delivery_fee?: number | null
+          estimated_delivery?: string | null
           id?: string
           mpesa_receipt?: string | null
           notes?: string | null
@@ -233,7 +320,9 @@ export type Database = {
           product_name?: string
           quantity?: number
           shipping_address?: string | null
+          sub_county?: string | null
           total_amount?: number
+          town?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -285,6 +374,48 @@ export type Database = {
           payment_info?: string | null
           price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          default_address: string | null
+          default_county: string | null
+          default_sub_county: string | null
+          default_town: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_address?: string | null
+          default_county?: string | null
+          default_sub_county?: string | null
+          default_town?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_address?: string | null
+          default_county?: string | null
+          default_sub_county?: string | null
+          default_town?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
