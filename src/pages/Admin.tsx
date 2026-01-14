@@ -16,10 +16,13 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  Mail, ChevronRight
+  Mail, ChevronRight, LayoutDashboard, TrendingUp
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import AdminStats from "@/components/admin/AdminStats";
+import AdminSales from "@/components/admin/AdminSales";
+import AdminOrders from "@/components/admin/AdminOrders";
 
 interface Product {
   id: string;
@@ -630,25 +633,60 @@ const Admin = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="products" className="w-full">
-          <TabsList className="mb-8 bg-card border shadow-sm flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="products" className="gap-2">
-              <Package className="w-4 h-4" />
-              Products
+        <Tabs defaultValue="dashboard" className="w-full">
+          <TabsList className="mb-8 bg-card border shadow-sm flex-wrap h-auto gap-1 p-1.5">
+            <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white">
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-2">
-              <Tag className="w-4 h-4" />
-              Categories
+            <TabsTrigger value="sales" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white">
+              <TrendingUp className="w-4 h-4" />
+              Sales
             </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2">
+            <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
               <ShoppingBag className="w-4 h-4" />
               Orders
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
+            <TabsTrigger value="products" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <Package className="w-4 h-4" />
+              Products
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white">
+              <Tag className="w-4 h-4" />
+              Categories
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-600 data-[state=active]:to-gray-700 data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
               Settings
             </TabsTrigger>
           </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard">
+            <div className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-foreground">Dashboard Overview</h2>
+              <p className="text-muted-foreground">Your store performance at a glance</p>
+            </div>
+            <AdminStats orders={orders as any} products={products} />
+          </TabsContent>
+
+          {/* Sales Tab */}
+          <TabsContent value="sales">
+            <div className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-foreground">Sales Analytics</h2>
+              <p className="text-muted-foreground">Track your M-Pesa payments and revenue</p>
+            </div>
+            <AdminSales orders={orders as any} />
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders">
+            <div className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-foreground">Order Management</h2>
+              <p className="text-muted-foreground">View and manage customer orders</p>
+            </div>
+            <AdminOrders orders={orders as any} onRefresh={fetchData} />
+          </TabsContent>
 
           {/* Products Tab */}
           <TabsContent value="products">
@@ -1051,94 +1089,6 @@ const Admin = () => {
                     </Card>
                   );
                 })}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Orders Tab */}
-          <TabsContent value="orders">
-            <div className="mb-6">
-              <h2 className="font-display text-2xl font-bold text-foreground">Orders</h2>
-              <p className="text-muted-foreground">Manage customer orders</p>
-            </div>
-
-            {orders.length === 0 ? (
-              <Card className="p-12 text-center bg-gradient-to-br from-card to-muted/30">
-                <ShoppingBag className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Orders Yet</h3>
-                <p className="text-muted-foreground">Orders will appear here when customers purchase.</p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <Card key={order.id} className="bg-gradient-to-r from-card to-card/80">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="font-mono font-semibold text-foreground">{order.order_number}</span>
-                            <Badge className={getStatusColor(order.order_status)}>{order.order_status}</Badge>
-                            <Badge className={getStatusColor(order.payment_status)}>{order.payment_status}</Badge>
-                          </div>
-                          <p className="font-medium text-foreground">{order.product_name} x {order.quantity}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {order.customer_name} • {order.customer_phone}
-                            {order.customer_email && ` • ${order.customer_email}`}
-                          </p>
-                          <p className="font-bold text-secondary mt-1">KES {order.total_amount.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(order.created_at).toLocaleString()}
-                          </p>
-                          {order.mpesa_receipt && (
-                            <p className="text-xs text-emerald-600 mt-1">M-Pesa: {order.mpesa_receipt}</p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2 lg:w-48">
-                          <Select
-                            value={order.order_status}
-                            onValueChange={(value) => handleUpdateOrderStatus(order.id, 'order_status', value)}
-                          >
-                            <SelectTrigger className="text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="confirmed">Confirmed</SelectItem>
-                              <SelectItem value="processing">Processing</SelectItem>
-                              <SelectItem value="shipped">Shipped</SelectItem>
-                              <SelectItem value="delivered">Delivered</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={order.payment_status}
-                            onValueChange={(value) => handleUpdateOrderStatus(order.id, 'payment_status', value)}
-                          >
-                            <SelectTrigger className="text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Payment Pending</SelectItem>
-                              <SelectItem value="processing">Processing</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="failed">Failed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      {order.shipping_address && (
-                        <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
-                          📍 {order.shipping_address}
-                        </p>
-                      )}
-                      {order.notes && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          📝 {order.notes}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
               </div>
             )}
           </TabsContent>
