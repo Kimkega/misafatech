@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ShoppingBag, Search, Phone, Mail, MapPin, 
   Package, CreditCard, Clock, CheckCircle2, XCircle,
-  Truck, Calendar, User, AlertCircle, Filter
+  Truck, Calendar, User, AlertCircle, Download, 
+  ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface Order {
   id: string;
@@ -45,9 +46,12 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "processing" | "shipped" | "delivered" | "cancelled">("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | "pending" | "completed" | "failed">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const { toast } = useToast();
 
-  // Filter orders
+  // Filter and sort orders
   const filteredOrders = useMemo(() => {
     let filtered = [...orders];
 
@@ -59,6 +63,18 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
     // Payment filtering
     if (paymentFilter !== "all") {
       filtered = filtered.filter(o => o.payment_status === paymentFilter);
+    }
+
+    // Date filtering
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(o => new Date(o.created_at) >= fromDate);
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(o => new Date(o.created_at) <= toDate);
     }
 
     // Search
@@ -73,8 +89,103 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
       );
     }
 
+    // Sort by date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
+
     return filtered;
-  }, [orders, statusFilter, paymentFilter, searchQuery]);
+  }, [orders, statusFilter, paymentFilter, searchQuery, dateFrom, dateTo, sortOrder]);
+
+  // Download orders as CSV
+  const downloadCSV = () => {
+    if (filteredOrders.length === 0) {
+      toast({ title: "No orders", description: "No orders to download", variant: "destructive" });
+      return;
+    }
+
+    const headers = [
+      "Order Number",
+      "Date",
+      "Time",
+      "Customer Name",
+      "Phone",
+      "Email",
+      "Product",
+      "Quantity",
+      "Amount (KES)",
+      "Delivery Fee (KES)",
+      "Total (KES)",
+      "Payment Status",
+      "M-Pesa Receipt",
+      "Order Status",
+      "County",
+      "Sub-County",
+      "Town",
+      "Address",
+      "Courier",
+      "Notes"
+    ];
+
+    const rows = filteredOrders.map(order => [
+      order.order_number,
+      format(new Date(order.created_at), "yyyy-MM-dd"),
+      format(new Date(order.created_at), "HH:mm:ss"),
+      order.customer_name,
+      order.customer_phone,
+      order.customer_email || "",
+      order.product_name,
+      order.quantity.toString(),
+      (order.total_amount - (order.delivery_fee || 0)).toString(),
+      (order.delivery_fee || 0).toString(),
+      order.total_amount.toString(),
+      order.payment_status,
+      order.mpesa_receipt || "",
+      order.order_status,
+      order.county || "",
+      order.sub_county || "",
+      order.town || "",
+      order.shipping_address || "",
+      order.courier || "",
+      order.notes || ""
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    const statusLabel = statusFilter === "all" ? "all-orders" : statusFilter;
+    const dateLabel = dateFrom || dateTo ? `_${dateFrom || "start"}_to_${dateTo || "now"}` : "";
+    const filename = `orders_${statusLabel}${dateLabel}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`;
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ 
+      title: "Downloaded!", 
+      description: `${filteredOrders.length} orders exported to CSV` 
+    });
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === "desc" ? "asc" : "desc");
+  };
+
+  const clearDateFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
 
   const handleUpdateOrderStatus = async (orderId: string, field: 'order_status' | 'payment_status', value: string) => {
     const { error } = await supabase
@@ -162,10 +273,11 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
 
       {/* Filters */}
       <Card className="border-0 shadow-md">
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
+          {/* Row 1: Search and Payment Filter */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:w-80">
+            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+              <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search orders..."
@@ -175,9 +287,9 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
                 />
               </div>
               <Select value={paymentFilter} onValueChange={(v: any) => setPaymentFilter(v)}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-40">
                   <CreditCard className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Payment Status" />
+                  <SelectValue placeholder="Payment" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Payments</SelectItem>
@@ -187,9 +299,69 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
                 </SelectContent>
               </Select>
             </div>
-            <Badge variant="outline" className="py-1.5 px-3">
-              {filteredOrders.length} orders
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="py-1.5 px-3">
+                {filteredOrders.length} orders
+              </Badge>
+            </div>
+          </div>
+
+          {/* Row 2: Date Filters, Sort, and Download */}
+          <div className="flex flex-col md:flex-row gap-3 items-center justify-between border-t pt-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">From:</span>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">To:</span>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={clearDateFilters}>
+                  Clear dates
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleSortOrder}
+                className="gap-2"
+              >
+                {sortOrder === "desc" ? (
+                  <>
+                    <ArrowDown className="w-4 h-4" />
+                    Newest First
+                  </>
+                ) : (
+                  <>
+                    <ArrowUp className="w-4 h-4" />
+                    Oldest First
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={downloadCSV}
+                className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
+              >
+                <Download className="w-4 h-4" />
+                Download CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
