@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, Shield, Zap } from "lucide-react";
+import { Menu, X, Shield, Zap, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SiteSettings {
@@ -40,6 +40,7 @@ const Navbar = () => {
     { name: "Deals", href: "#deals" },
     { name: "Energy Calculator", href: "#calculator", icon: Zap },
     { name: "Contact", href: "#contact" },
+    { name: "Track Order", href: "/my-orders", icon: Package, isLink: true },
   ];
 
   return (
@@ -78,18 +79,33 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className={`text-sm font-medium transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg ${
-                  scrolled 
-                    ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {link.icon && <link.icon className="w-4 h-4 text-yellow-400" />}
-                {link.name}
-              </a>
+              link.isLink ? (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className={`text-sm font-medium transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg ${
+                    scrolled 
+                      ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {link.icon && <link.icon className="w-4 h-4 text-emerald-400" />}
+                  {link.name}
+                </Link>
+              ) : (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  className={`text-sm font-medium transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg ${
+                    scrolled 
+                      ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {link.icon && <link.icon className="w-4 h-4 text-yellow-400" />}
+                  {link.name}
+                </a>
+              )
             ))}
           </div>
 
@@ -111,15 +127,27 @@ const Navbar = () => {
           <div className="md:hidden py-4 border-t border-border animate-fade-in bg-card rounded-b-2xl shadow-xl">
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 px-4 py-3 rounded-lg"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {link.icon && <link.icon className="w-4 h-4 text-yellow-500" />}
-                  {link.name}
-                </a>
+                link.isLink ? (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 px-4 py-3 rounded-lg"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {link.icon && <link.icon className="w-4 h-4 text-emerald-500" />}
+                    {link.name}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 px-4 py-3 rounded-lg"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {link.icon && <link.icon className="w-4 h-4 text-yellow-500" />}
+                    {link.name}
+                  </a>
+                )
               ))}
             </div>
           </div>
