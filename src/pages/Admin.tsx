@@ -981,14 +981,14 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label>Parent Category (for subcategory)</Label>
                       <Select
-                        value={categoryForm.parent_id}
-                        onValueChange={(value) => setCategoryForm({ ...categoryForm, parent_id: value })}
+                        value={categoryForm.parent_id || "none"}
+                        onValueChange={(value) => setCategoryForm({ ...categoryForm, parent_id: value === "none" ? "" : value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="None (top-level category)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None (top-level category)</SelectItem>
+                          <SelectItem value="none">None (top-level category)</SelectItem>
                           {parentCategories
                             .filter(c => c.id !== editingCategory?.id)
                             .map((cat) => (
