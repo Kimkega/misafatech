@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import AdminStats from "@/components/admin/AdminStats";
 import AdminSales from "@/components/admin/AdminSales";
 import AdminOrders from "@/components/admin/AdminOrders";
+import AdminSmsSettings from "@/components/admin/AdminSmsSettings";
 
 interface Product {
   id: string;
@@ -88,6 +89,19 @@ interface EmailSettings {
   customer_notification_enabled: boolean;
 }
 
+interface SmsSettings {
+  id: string;
+  provider: string;
+  is_enabled: boolean;
+  api_key: string | null;
+  api_secret: string | null;
+  username: string | null;
+  sender_id: string | null;
+  environment: string;
+  order_notification_enabled: boolean;
+  status_update_enabled: boolean;
+}
+
 interface Order {
   id: string;
   order_number: string;
@@ -115,6 +129,7 @@ const Admin = () => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [mpesaSettings, setMpesaSettings] = useState<MpesaSettings | null>(null);
   const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(null);
+  const [smsSettings, setSmsSettings] = useState<SmsSettings | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -171,13 +186,14 @@ const Admin = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes, contactRes, settingsRes, mpesaRes, emailRes, ordersRes] = await Promise.all([
+      const [productsRes, categoriesRes, contactRes, settingsRes, mpesaRes, emailRes, smsRes, ordersRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("*").order("name"),
         supabase.from("contact_info").select("*").limit(1).maybeSingle(),
         supabase.from("site_settings").select("*").limit(1).maybeSingle(),
         supabase.from("mpesa_settings").select("*").limit(1).maybeSingle(),
         supabase.from("email_settings").select("*").limit(1).maybeSingle(),
+        supabase.from("sms_settings").select("*").limit(1).maybeSingle(),
         supabase.from("orders").select("*").order("created_at", { ascending: false }),
       ]);
 
@@ -187,6 +203,7 @@ const Admin = () => {
       if (settingsRes.data) setSiteSettings(settingsRes.data);
       if (mpesaRes.data) setMpesaSettings(mpesaRes.data as MpesaSettings);
       if (emailRes.data) setEmailSettings(emailRes.data as EmailSettings);
+      if (smsRes.data) setSmsSettings(smsRes.data as SmsSettings);
       if (ordersRes.data) setOrders(ordersRes.data as Order[]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -1410,6 +1427,9 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* SMS Settings */}
+            <AdminSmsSettings smsSettings={smsSettings} setSmsSettings={setSmsSettings} />
 
             {/* Contact Info */}
             <Card className="bg-gradient-to-br from-card to-muted/30">

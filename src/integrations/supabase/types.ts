@@ -446,6 +446,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_settings: {
+        Row: {
+          api_key: string | null
+          api_secret: string | null
+          created_at: string
+          environment: string | null
+          id: string
+          is_enabled: boolean | null
+          order_notification_enabled: boolean | null
+          provider: string
+          sender_id: string | null
+          status_update_enabled: boolean | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          environment?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          order_notification_enabled?: boolean | null
+          provider?: string
+          sender_id?: string | null
+          status_update_enabled?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          environment?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          order_notification_enabled?: boolean | null
+          provider?: string
+          sender_id?: string | null
+          status_update_enabled?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
