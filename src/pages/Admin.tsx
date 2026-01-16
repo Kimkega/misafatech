@@ -122,6 +122,7 @@ interface Order {
 
 const Admin = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -165,6 +166,25 @@ const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const checkAdminRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    
+    if (error) {
+      console.error("Error checking admin role:", error);
+      setIsAdmin(false);
+      return false;
+    }
+    
+    const hasAdminRole = !!data;
+    setIsAdmin(hasAdminRole);
+    return hasAdminRole;
+  };
+
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
@@ -173,12 +193,22 @@ const Admin = () => {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate("/auth");
       } else {
-        fetchData();
+        const hasAdmin = await checkAdminRole(session.user.id);
+        if (!hasAdmin) {
+          toast({ 
+            title: "Access Denied", 
+            description: "You don't have admin privileges.", 
+            variant: "destructive" 
+          });
+          navigate("/");
+        } else {
+          fetchData();
+        }
       }
     });
   }, [navigate]);
@@ -367,7 +397,7 @@ const Admin = () => {
       name: categoryForm.name.trim(),
       description: categoryForm.description.trim() || null,
       icon: categoryForm.icon.trim() || null,
-      parent_id: categoryForm.parent_id || null,
+      parent_id: categoryForm.parent_id && categoryForm.parent_id !== "none" ? categoryForm.parent_id : null,
     };
 
     if (editingCategory) {
@@ -608,10 +638,27 @@ const Admin = () => {
     return cat.name;
   };
 
-  if (loading) {
+  if (loading || isAdmin === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-secondary" />
+        <p className="text-muted-foreground">Verifying admin access...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background gap-4">
+        <Shield className="w-16 h-16 text-destructive" />
+        <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
+        <p className="text-muted-foreground">You don't have admin privileges to access this page.</p>
+        <Link to="/">
+          <Button className="gap-2 mt-4">
+            <ArrowLeft className="w-4 h-4" />
+            Go Back Home
+          </Button>
+        </Link>
       </div>
     );
   }
