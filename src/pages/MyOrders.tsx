@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session, RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,10 +11,11 @@ import {
   Package, Truck, CheckCircle2, Clock, XCircle, 
   Search, ArrowLeft, LogOut, User as UserIcon,
   Phone, Mail, MapPin, Calendar, Receipt, Loader2,
-  ShoppingBag, Home
+  ShoppingBag, Home, Printer, Download, Wifi
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import OrderReceipt from "@/components/OrderReceipt";
 
 interface Order {
   id: string;
@@ -48,6 +49,10 @@ const MyOrders = () => {
   const [searchEmail, setSearchEmail] = useState("");
   const [searchedOrders, setSearchedOrders] = useState<Order[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [isRealtime, setIsRealtime] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -69,6 +74,65 @@ const MyOrders = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Set up realtime subscription for orders
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `customer_email=eq.${user.email}`
+        },
+        (payload) => {
+          console.log('Realtime order update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setOrders(prev => [payload.new as Order, ...prev]);
+            toast({
+              title: "New Order Created",
+              description: `Order ${(payload.new as Order).order_number} has been placed.`,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOrder = payload.new as Order;
+            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            
+            // Notify user of status change
+            if (payload.old && (payload.old as Order).order_status !== updatedOrder.order_status) {
+              toast({
+                title: "Order Status Updated",
+                description: `Order ${updatedOrder.order_number} is now ${updatedOrder.order_status}`,
+              });
+            }
+            if (payload.old && (payload.old as Order).payment_status !== updatedOrder.payment_status) {
+              toast({
+                title: "Payment Status Updated",
+                description: `Order ${updatedOrder.order_number} payment is ${updatedOrder.payment_status}`,
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => prev.filter(o => o.id !== (payload.old as Order).id));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+        setIsRealtime(status === 'SUBSCRIBED');
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [user?.email, toast]);
 
   const fetchUserOrders = async (email: string) => {
     setLoading(true);
@@ -129,6 +193,11 @@ const MyOrders = () => {
     navigate("/");
   };
 
+  const handleViewReceipt = (order: Order) => {
+    setSelectedOrder(order);
+    setShowReceipt(true);
+  };
+
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
       pending: { icon: <Clock className="w-4 h-4" />, color: "text-yellow-600", bg: "bg-yellow-100 border-yellow-300" },
@@ -141,7 +210,7 @@ const MyOrders = () => {
   };
 
   const getPaymentBadge = (status: string) => {
-    if (status === "paid") return <Badge className="bg-green-500">Paid</Badge>;
+    if (status === "paid" || status === "completed") return <Badge className="bg-green-500">Paid</Badge>;
     if (status === "pending") return <Badge variant="outline" className="border-yellow-500 text-yellow-600">Pending</Badge>;
     return <Badge variant="destructive">{status}</Badge>;
   };
@@ -159,9 +228,20 @@ const MyOrders = () => {
               <p className="text-xs text-muted-foreground">Order Number</p>
               <p className="font-mono font-bold text-primary">{order.order_number}</p>
             </div>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${statusConfig.bg}`}>
-              {statusConfig.icon}
-              <span className={`text-sm font-medium capitalize ${statusConfig.color}`}>{order.order_status}</span>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${statusConfig.bg}`}>
+                {statusConfig.icon}
+                <span className={`text-sm font-medium capitalize ${statusConfig.color}`}>{order.order_status}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleViewReceipt(order)}
+                className="gap-1"
+              >
+                <Receipt className="w-4 h-4" />
+                <span className="hidden sm:inline">Receipt</span>
+              </Button>
             </div>
           </div>
 
@@ -256,7 +336,15 @@ const MyOrders = () => {
                 <Package className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-lg">My Orders</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-bold text-lg">My Orders</h1>
+                  {isRealtime && (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <Wifi className="w-3 h-3" />
+                      <span className="hidden sm:inline">Live</span>
+                    </div>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">Track your purchases</p>
               </div>
             </div>
@@ -412,6 +500,15 @@ const MyOrders = () => {
           </Card>
         )}
       </main>
+
+      {/* Order Receipt Modal */}
+      {selectedOrder && (
+        <OrderReceipt 
+          order={selectedOrder} 
+          isOpen={showReceipt} 
+          onClose={() => setShowReceipt(false)} 
+        />
+      )}
     </div>
   );
 };

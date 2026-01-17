@@ -188,6 +188,9 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, field: 'order_status' | 'payment_status', value: string) => {
+    // Find the order to get customer phone
+    const order = orders.find(o => o.id === orderId);
+    
     const { error } = await supabase
       .from("orders")
       .update({ [field]: value } as any)
@@ -197,6 +200,48 @@ const AdminOrders = ({ orders, onRefresh }: AdminOrdersProps) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Updated", description: "Order updated successfully." });
+      
+      // Send SMS notification for status updates
+      if (order && order.customer_phone) {
+        let message = "";
+        
+        if (field === 'order_status') {
+          switch (value) {
+            case 'processing':
+              message = `Hi ${order.customer_name}! Your order ${order.order_number} is now being processed. We'll notify you when it's shipped.`;
+              break;
+            case 'shipped':
+              message = `Great news ${order.customer_name}! Your order ${order.order_number} has been shipped${order.courier ? ` via ${order.courier}` : ''}. Track your delivery!`;
+              break;
+            case 'delivered':
+              message = `Hi ${order.customer_name}! Your order ${order.order_number} has been delivered. Thank you for shopping with us!`;
+              break;
+            case 'cancelled':
+              message = `Hi ${order.customer_name}, your order ${order.order_number} has been cancelled. Contact us if you have questions.`;
+              break;
+          }
+        } else if (field === 'payment_status' && value === 'completed') {
+          message = `Payment confirmed for order ${order.order_number}! Thank you ${order.customer_name}. We're processing your order now.`;
+        }
+        
+        if (message) {
+          try {
+            await supabase.functions.invoke("send-sms", {
+              body: {
+                phone: order.customer_phone,
+                message,
+                orderId,
+                type: field === 'payment_status' ? 'payment_confirmed' : 'status_update'
+              }
+            });
+            console.log("SMS notification sent successfully");
+          } catch (smsError) {
+            console.error("Failed to send SMS notification:", smsError);
+            // Don't show error toast - SMS is optional
+          }
+        }
+      }
+      
       onRefresh();
     }
   };
