@@ -78,10 +78,25 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
         estimated_delivery: `${estimatedDays} days`,
         shipping_address: `${formData.town}, ${formData.subCounty}, ${formData.county}`,
         order_number: `ORD-${Date.now()}`,
-      } as any).select("order_number").single();
+      } as any).select("id, order_number").single();
 
       if (error) throw error;
       setOrderNumber(data.order_number);
+
+      // Send SMS notification for order placed
+      try {
+        await supabase.functions.invoke("send-sms", {
+          body: {
+            phone: formData.phone,
+            message: `Hi ${formData.name}! Your order ${data.order_number} (KES ${grandTotal.toLocaleString()}) has been placed. Delivery to ${formData.town}, ${formData.county} via ${formData.courier}. Est: ${estimatedDays} days. Thank you!`,
+            orderId: data.id,
+            type: "order_placed"
+          }
+        });
+      } catch (smsError) {
+        console.error("SMS notification failed:", smsError);
+      }
+
       await clearCart();
       setOrderComplete(true);
       setStep(4);

@@ -122,6 +122,20 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
       setOrderId(data.id);
       setOrderNumber(data.order_number);
 
+      // Send SMS notification for order placed
+      try {
+        await supabase.functions.invoke("send-sms", {
+          body: {
+            phone: formData.phone,
+            message: `Hi ${formData.name}! Your order ${data.order_number} for ${product.name} (KES ${totalAmount.toLocaleString()}) has been received. We'll process it shortly. Thank you!`,
+            orderId: data.id,
+            type: "order_placed"
+          }
+        });
+      } catch (smsError) {
+        console.error("SMS notification failed:", smsError);
+      }
+
       // If STK push is selected, trigger it
       if (formData.paymentMethod === "stk" && mpesaSettings?.is_enabled) {
         await triggerSTKPush(data.id, data.order_number);
