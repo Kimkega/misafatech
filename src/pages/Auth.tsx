@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Shield, Loader2, ArrowLeft, Mail, Lock, 
-  Eye, EyeOff, CheckCircle, Zap, Package, TrendingUp 
+  User as UserIcon, Loader2, ArrowLeft, Mail, Lock, 
+  Eye, EyeOff, CheckCircle, Package, ShoppingBag, Truck 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +28,7 @@ const Auth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        navigate("/admin");
+        navigate("/my-orders");
       }
     });
 
@@ -36,7 +36,7 @@ const Auth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        navigate("/admin");
+        navigate("/my-orders");
       }
     });
 
@@ -72,9 +72,9 @@ const Auth = () => {
     } else {
       toast({
         title: "Welcome back!",
-        description: "Successfully logged in to your admin account.",
+        description: "Successfully logged in to your account.",
       });
-      navigate("/admin");
+      navigate("/my-orders");
     }
     setLoading(false);
   };
@@ -105,7 +105,7 @@ const Auth = () => {
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/admin`,
+        emailRedirectTo: `${window.location.origin}/my-orders`,
       },
     });
 
@@ -122,16 +122,16 @@ const Auth = () => {
     } else {
       toast({
         title: "Account Created! 🎉",
-        description: "You can now log in to manage your store.",
+        description: "You can now log in to track your orders.",
       });
     }
     setLoading(false);
   };
 
   const features = [
-    { icon: <Package className="w-5 h-5" />, title: "Product Management", desc: "Add, edit, and organize products" },
-    { icon: <TrendingUp className="w-5 h-5" />, title: "Sales Analytics", desc: "Track revenue and orders" },
-    { icon: <Zap className="w-5 h-5" />, title: "Real-time Updates", desc: "Instant order notifications" },
+    { icon: <Package className="w-5 h-5" />, title: "Track Orders", desc: "View real-time order status updates" },
+    { icon: <ShoppingBag className="w-5 h-5" />, title: "Order History", desc: "Access all your past purchases" },
+    { icon: <Truck className="w-5 h-5" />, title: "Delivery Updates", desc: "Get notified on shipping progress" },
   ];
 
   return (
@@ -151,10 +151,10 @@ const Auth = () => {
 
           <div className="mb-12">
             <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-green-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-              <Shield className="w-8 h-8 text-white" />
+              <UserIcon className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">Admin Dashboard</h1>
-            <p className="text-lg text-white/70">Powerful tools to manage your business efficiently</p>
+            <h1 className="text-4xl font-bold text-white mb-4">Welcome Back</h1>
+            <p className="text-lg text-white/70">Sign in to track your orders and manage your account</p>
           </div>
 
           <div className="space-y-6">
@@ -174,7 +174,7 @@ const Auth = () => {
           <div className="mt-12 p-4 rounded-xl bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-400" />
-              <p className="text-sm text-white/80">Secure, encrypted admin access</p>
+              <p className="text-sm text-white/80">Secure, encrypted account access</p>
             </div>
           </div>
         </div>
@@ -195,13 +195,13 @@ const Auth = () => {
           <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur">
             <CardHeader className="text-center pb-2">
               <div className="lg:hidden w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Shield className="w-8 h-8 text-white" />
+                <UserIcon className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="font-display text-2xl">
-                {window.innerWidth >= 1024 ? "Sign In" : "Admin Access"}
+                Sign In
               </CardTitle>
               <CardDescription>
-                Manage your store and products
+                Access your account and track orders
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -225,7 +225,7 @@ const Auth = () => {
                       <Input
                         id="login-email"
                         type="email"
-                        placeholder="admin@example.com"
+                        placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -280,7 +280,7 @@ const Auth = () => {
                       <Input
                         id="signup-email"
                         type="email"
-                        placeholder="admin@example.com"
+                        placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -328,11 +328,17 @@ const Auth = () => {
                 </TabsContent>
               </Tabs>
 
-              <div className="mt-6 pt-6 border-t text-center">
+              <div className="mt-6 pt-6 border-t text-center space-y-2">
                 <p className="text-sm text-muted-foreground">
                   Looking to track an order?{" "}
                   <Link to="/my-orders" className="text-emerald-600 hover:text-emerald-700 font-medium">
                     Track Orders →
+                  </Link>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Store admin?{" "}
+                  <Link to="/admin" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                    Admin Dashboard →
                   </Link>
                 </p>
               </div>
