@@ -23,12 +23,27 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const checkAdminAndRedirect = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    
+    if (data) {
+      navigate("/admin");
+    } else {
+      navigate("/my-orders");
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        navigate("/my-orders");
+      if (session?.user && event === "SIGNED_IN") {
+        checkAdminAndRedirect(session.user.id);
       }
     });
 
@@ -36,7 +51,7 @@ const Auth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        navigate("/my-orders");
+        checkAdminAndRedirect(session.user.id);
       }
     });
 
@@ -74,7 +89,7 @@ const Auth = () => {
         title: "Welcome back!",
         description: "Successfully logged in to your account.",
       });
-      navigate("/my-orders");
+      // Redirect is handled by onAuthStateChange
     }
     setLoading(false);
   };
@@ -328,18 +343,9 @@ const Auth = () => {
                 </TabsContent>
               </Tabs>
 
-              <div className="mt-6 pt-6 border-t text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Looking to track an order?{" "}
-                  <Link to="/my-orders" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                    Track Orders →
-                  </Link>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Store admin?{" "}
-                  <Link to="/admin" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                    Admin Dashboard →
-                  </Link>
+              <div className="mt-6 pt-6 border-t text-center">
+                <p className="text-xs text-muted-foreground">
+                  By signing in, you agree to our terms and privacy policy
                 </p>
               </div>
             </CardContent>
