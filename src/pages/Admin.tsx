@@ -16,7 +16,7 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  Mail, ChevronRight, LayoutDashboard, TrendingUp
+  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -24,6 +24,7 @@ import AdminStats from "@/components/admin/AdminStats";
 import AdminSales from "@/components/admin/AdminSales";
 import AdminOrders from "@/components/admin/AdminOrders";
 import AdminSmsSettings from "@/components/admin/AdminSmsSettings";
+import AdminUsers from "@/components/admin/AdminUsers";
 
 interface Product {
   id: string;
@@ -719,6 +720,10 @@ const Admin = () => {
               <Tag className="w-4 h-4" />
               Categories
             </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white">
+              <Users className="w-4 h-4" />
+              Users
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-600 data-[state=active]:to-gray-700 data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
               Settings
@@ -1155,6 +1160,15 @@ const Admin = () => {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <div className="mb-6">
+              <h2 className="font-display text-2xl font-bold text-foreground">User Management</h2>
+              <p className="text-muted-foreground">Manage users and their roles</p>
+            </div>
+            <AdminUsers />
           </TabsContent>
 
           {/* Settings Tab */}
