@@ -25,6 +25,7 @@ import AdminSales from "@/components/admin/AdminSales";
 import AdminOrders from "@/components/admin/AdminOrders";
 import AdminSmsSettings from "@/components/admin/AdminSmsSettings";
 import AdminUsers from "@/components/admin/AdminUsers";
+import AdminShipping from "@/components/admin/AdminShipping";
 
 interface Product {
   id: string;
@@ -723,6 +724,10 @@ const Admin = () => {
             <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white">
               <Users className="w-4 h-4" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="shipping" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
+              <Truck className="w-4 h-4" />
+              Shipping
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-600 data-[state=active]:to-gray-700 data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
