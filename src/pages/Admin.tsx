@@ -16,7 +16,7 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users
+  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users, Truck
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
