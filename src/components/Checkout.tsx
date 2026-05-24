@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,39 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { 
-  ShoppingCart, CreditCard, Phone, User, Mail, MapPin, 
-  Loader2, CheckCircle, AlertCircle, Copy, MessageCircle, Smartphone
+import {
+  ShoppingCart, CreditCard, Phone, User, Mail, MapPin, Truck,
+  Loader2, CheckCircle, AlertCircle, Copy, MessageCircle, Smartphone, FileText, ExternalLink
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { KENYA_LOCATIONS, COURIER_INFO, getDeliveryFee, getEstimatedDays } from "@/data/kenyaLocations";
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string | null;
-}
-
-interface CheckoutProps {
-  product: Product;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-interface ContactInfo {
-  whatsapp_number: string;
-  till_number: string | null;
-  paybill_number: string | null;
-  account_number: string | null;
-}
-
-interface MpesaSettings {
-  is_enabled: boolean;
-  allow_manual_payment: boolean;
-  payment_type: string;
-  shortcode: string | null;
-}
+interface Product { id: string; name: string; price: number; image_url: string | null; }
+interface CheckoutProps { product: Product; isOpen: boolean; onClose: () => void; }
 
 const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
   const [step, setStep] = useState(1);
@@ -47,538 +25,305 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
-  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
-  const [mpesaSettings, setMpesaSettings] = useState<MpesaSettings | null>(null);
-  
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    quantity: 1,
-    paymentMethod: "manual",
-    notes: "",
-  });
-
+  const [contactInfo, setContactInfo] = useState<any>(null);
+  const [mpesaSettings, setMpesaSettings] = useState<any>(null);
   const { toast } = useToast();
 
+  const [formData, setFormData] = useState({
+    name: "", phone: "", email: "",
+    county: "", subCounty: "", town: "", courier: "",
+    quantity: 1, paymentMethod: "manual", notes: "",
+  });
+
   useEffect(() => {
-    if (isOpen) {
-      fetchSettings();
-    }
+    if (!isOpen) return;
+    Promise.all([
+      supabase.from("contact_info").select("*").limit(1).single(),
+      supabase.from("mpesa_settings").select("*").limit(1).single(),
+    ]).then(([c, m]) => {
+      if (c.data) setContactInfo(c.data);
+      if (m.data) {
+        setMpesaSettings(m.data);
+        setFormData(p => ({ ...p, paymentMethod: m.data.is_enabled ? "stk" : "manual" }));
+      }
+    });
   }, [isOpen]);
 
-  const fetchSettings = async () => {
-    const [contactRes, mpesaRes] = await Promise.all([
-      supabase.from("contact_info").select("whatsapp_number, till_number, paybill_number, account_number").limit(1).single(),
-      supabase.from("mpesa_settings").select("*").limit(1).single(),
-    ]);
-    
-    if (contactRes.data) setContactInfo(contactRes.data);
-    if (mpesaRes.data) {
-      setMpesaSettings(mpesaRes.data as MpesaSettings);
-      // Set default payment method based on what's enabled
-      if (mpesaRes.data.is_enabled) {
-        setFormData(prev => ({ ...prev, paymentMethod: "stk" }));
-      } else if (mpesaRes.data.allow_manual_payment) {
-        setFormData(prev => ({ ...prev, paymentMethod: "manual" }));
-      }
-    }
-  };
+  const selCounty = useMemo(() => KENYA_LOCATIONS.find(c => c.name === formData.county), [formData.county]);
+  const selSub = useMemo(() => selCounty?.subCounties.find(s => s.name === formData.subCounty), [selCounty, formData.subCounty]);
+  const selTown = useMemo(() => selSub?.towns.find(t => t.name === formData.town), [selSub, formData.town]);
 
-  const totalAmount = product.price * formData.quantity;
+  const productSubtotal = product.price * formData.quantity;
+  const deliveryFee = formData.courier && formData.county ? getDeliveryFee(formData.county, formData.courier) : 0;
+  const estDays = formData.courier && formData.county ? getEstimatedDays(formData.county, formData.courier) : 0;
+  const totalAmount = productSubtotal + deliveryFee;
+
+  const invoiceUrl = orderNumber ? `${window.location.origin}/invoice/${orderNumber}` : "";
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.phone) {
-      toast({ title: "Please fill in required fields", variant: "destructive" });
+    if (!formData.name || !formData.phone || !formData.county) {
+      toast({ title: "Please fill required fields", variant: "destructive" });
       return;
     }
-
     setLoading(true);
-
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .insert({
-          customer_name: formData.name,
-          customer_phone: formData.phone,
-          customer_email: formData.email || null,
-          product_id: product.id,
-          product_name: product.name,
-          quantity: formData.quantity,
-          total_amount: totalAmount,
-          payment_method: formData.paymentMethod,
-          shipping_address: formData.address || null,
-          notes: formData.notes || null,
-          payment_status: "pending",
-          order_status: "pending",
-          order_number: `ORD-${Date.now()}`,
-        } as any)
-        .select("id, order_number")
-        .single();
+      const { data, error } = await supabase.from("orders").insert({
+        customer_name: formData.name,
+        customer_phone: formData.phone,
+        customer_email: formData.email || null,
+        product_id: product.id,
+        product_name: product.name,
+        quantity: formData.quantity,
+        total_amount: totalAmount,
+        payment_method: formData.paymentMethod,
+        shipping_address: [formData.town, formData.subCounty, formData.county].filter(Boolean).join(", "),
+        county: formData.county,
+        sub_county: formData.subCounty || null,
+        town: formData.town || null,
+        courier: formData.courier || null,
+        delivery_fee: deliveryFee,
+        estimated_delivery: estDays ? `${estDays} days` : null,
+        notes: formData.notes || null,
+        payment_status: "pending",
+        order_status: "pending",
+        order_number: `ORD-${Date.now()}`,
+      } as any).select("id, order_number").single();
 
       if (error) throw error;
-
       setOrderId(data.id);
       setOrderNumber(data.order_number);
 
-      // Send SMS notification for order placed
+      const invUrl = `${window.location.origin}/invoice/${data.order_number}`;
+
+      // SMS with invoice link
       try {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: formData.phone,
-            message: `Hi ${formData.name}! Your order ${data.order_number} for ${product.name} (KES ${totalAmount.toLocaleString()}) has been received. We'll process it shortly. Thank you!`,
+            message: `Hi ${formData.name}! Order ${data.order_number} for ${product.name} (KES ${totalAmount.toLocaleString()}) received. Pay/view invoice: ${invUrl}`,
             orderId: data.id,
-            type: "order_placed"
-          }
+            type: "order_placed",
+          },
         });
-      } catch (smsError) {
-        console.error("SMS notification failed:", smsError);
-      }
+      } catch (e) { console.error("SMS failed", e); }
 
-      // If STK push is selected, trigger it
       if (formData.paymentMethod === "stk" && mpesaSettings?.is_enabled) {
-        await triggerSTKPush(data.id, data.order_number);
+        await triggerSTK(data.id, data.order_number);
       } else {
         setOrderComplete(true);
-        setStep(3);
+        setStep(4);
       }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const triggerSTKPush = async (orderId: string, orderNum: string) => {
+  const triggerSTK = async (oId: string, oNum: string) => {
     setStkLoading(true);
-    
     try {
       const { data, error } = await supabase.functions.invoke("mpesa-stk-push", {
-        body: {
-          phone: formData.phone,
-          amount: totalAmount,
-          orderId: orderId,
-          accountReference: orderNum.substring(0, 12),
-        },
+        body: { phone: formData.phone, amount: totalAmount, orderId: oId, accountReference: oNum.substring(0, 12) },
       });
-
       if (error) throw error;
-
-      if (data.success) {
-        toast({
-          title: "STK Push Sent!",
-          description: "Check your phone for the M-Pesa payment prompt.",
-        });
+      if (data?.success) {
+        toast({ title: "STK Push Sent!", description: "Check your phone for the M-Pesa prompt." });
         setOrderComplete(true);
-        setStep(3);
-      } else {
-        throw new Error(data.error || "STK push failed");
-      }
-    } catch (error: any) {
-      console.error("STK Push error:", error);
-      toast({
-        title: "STK Push Failed",
-        description: error.message || "Please try manual payment instead.",
-        variant: "destructive",
-      });
-      // Fall back to manual payment
-      setFormData(prev => ({ ...prev, paymentMethod: "manual" }));
+        setStep(4);
+      } else throw new Error(data?.error || "STK failed");
+    } catch (e: any) {
+      toast({ title: "STK Failed", description: e.message, variant: "destructive" });
+      setFormData(p => ({ ...p, paymentMethod: "manual" }));
     } finally {
       setStkLoading(false);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copied to clipboard!" });
-  };
+  const copy = (t: string) => { navigator.clipboard.writeText(t); toast({ title: "Copied!" }); };
 
-  const handleWhatsAppConfirmation = () => {
+  const sendWhatsAppWithInvoice = () => {
     if (!contactInfo) return;
-    
-    const message = encodeURIComponent(
-      `🧾 *Payment Confirmation*\n\n` +
-      `📋 Order: ${orderNumber}\n` +
-      `📦 Product: ${product.name}\n` +
-      `💰 Amount: KES ${totalAmount.toLocaleString()}\n` +
-      `📱 Phone: ${formData.phone}\n\n` +
-      `I have completed the payment. Please confirm my order.`
-    );
-    
-    const cleanNumber = contactInfo.whatsapp_number.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+    const payload = {
+      type: "order_invoice",
+      order_number: orderNumber,
+      invoice_url: invoiceUrl,
+      customer: { name: formData.name, phone: formData.phone, email: formData.email || null },
+      delivery: { county: formData.county, sub_county: formData.subCounty, town: formData.town, courier: formData.courier, fee: deliveryFee, estimated_days: estDays },
+      items: [{ product_id: product.id, name: product.name, qty: formData.quantity, price: product.price }],
+      total: totalAmount,
+      currency: "KES",
+      payment_method: formData.paymentMethod,
+    };
+    const text = `🧾 *New Order Invoice*\n\n📋 Order: ${orderNumber}\n📦 ${product.name} x${formData.quantity}\n💰 Total: KES ${totalAmount.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${COURIER_INFO[formData.courier]?.name || formData.courier}\n\n🔗 *Invoice Link:*\n${invoiceUrl}\n\n*Order JSON:*\n\`\`\`${JSON.stringify(payload, null, 2)}\`\`\``;
+    const phone = contactInfo.whatsapp_number.replace(/[^0-9]/g, "");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  const resetAndClose = () => {
-    setStep(1);
-    setOrderComplete(false);
-    setOrderNumber("");
-    setOrderId("");
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      quantity: 1,
-      paymentMethod: mpesaSettings?.is_enabled ? "stk" : "manual",
-      notes: "",
-    });
+  const reset = () => {
+    setStep(1); setOrderComplete(false); setOrderNumber(""); setOrderId("");
+    setFormData({ name: "", phone: "", email: "", county: "", subCounty: "", town: "", courier: "", quantity: 1, paymentMethod: mpesaSettings?.is_enabled ? "stk" : "manual", notes: "" });
     onClose();
   };
 
-  const hasPaymentOptions = mpesaSettings?.is_enabled || mpesaSettings?.allow_manual_payment;
+  const hasPayment = mpesaSettings?.is_enabled || mpesaSettings?.allow_manual_payment;
 
   return (
-    <Dialog open={isOpen} onOpenChange={resetAndClose}>
+    <Dialog open={isOpen} onOpenChange={reset}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background to-muted/30">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
+          <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-secondary" />
-            {orderComplete ? "Order Complete" : "Checkout"}
+            {orderComplete ? "Order Complete" : `Checkout — Step ${step}/3`}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step 1: Customer Info */}
         {step === 1 && (
           <div className="space-y-4">
-            {/* Product Summary */}
             <Card className="bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="w-16 h-16 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-emerald-100">
-                      <ShoppingCart className="w-6 h-6 text-emerald-400" />
-                    </div>
-                  )}
+                  {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-emerald-100"><ShoppingCart className="w-6 h-6 text-emerald-400" /></div>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-foreground truncate">{product.name}</h4>
+                  <h4 className="font-semibold truncate">{product.name}</h4>
                   <p className="text-lg font-bold text-secondary">KES {product.price.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <User className="w-4 h-4" /> Full Name *
-                </Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="John Doe"
-                  className="bg-card"
-                />
-              </div>
+            <div className="space-y-2"><Label className="flex items-center gap-2"><User className="w-4 h-4" />Full Name *</Label>
+              <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="John Doe" /></div>
+            <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="w-4 h-4" />Phone *</Label>
+              <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="0712 345 678" /></div>
+            <div className="space-y-2"><Label className="flex items-center gap-2"><Mail className="w-4 h-4" />Email (Optional)</Label>
+              <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john@example.com" /></div>
 
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" /> Phone Number *
-                </Label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="0712 345 678"
-                  className="bg-card"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {mpesaSettings?.is_enabled && "This number will receive the M-Pesa prompt"}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" /> Email (Optional)
-                </Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="john@example.com"
-                  className="bg-card"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" /> Delivery Address
-                </Label>
-                <Textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Nairobi, Kenya"
-                  rows={2}
-                  className="bg-card"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setFormData({ ...formData, quantity: Math.max(1, formData.quantity - 1) })}
-                  >
-                    -
-                  </Button>
-                  <span className="font-semibold text-lg w-8 text-center">{formData.quantity}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setFormData({ ...formData, quantity: formData.quantity + 1 })}
-                  >
-                    +
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-secondary">KES {totalAmount.toLocaleString()}</span>
-                </div>
+            <div className="space-y-2"><Label>Quantity</Label>
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="outline" size="icon" onClick={() => setFormData({ ...formData, quantity: Math.max(1, formData.quantity - 1) })}>-</Button>
+                <span className="font-semibold text-lg w-8 text-center">{formData.quantity}</span>
+                <Button type="button" variant="outline" size="icon" onClick={() => setFormData({ ...formData, quantity: formData.quantity + 1 })}>+</Button>
               </div>
             </div>
 
-            <Button
-              onClick={() => setStep(2)}
-              className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-              disabled={!formData.name || !formData.phone}
-            >
-              Continue to Payment
-            </Button>
+            <Button onClick={() => setStep(2)} className="w-full bg-gradient-to-r from-emerald-500 to-green-500" disabled={!formData.name || !formData.phone}>Continue to Delivery</Button>
           </div>
         )}
 
-        {/* Step 2: Payment */}
         {step === 2 && (
           <div className="space-y-4">
-            <Card className="bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Order Total</span>
-                  <span className="text-2xl font-bold text-secondary">KES {totalAmount.toLocaleString()}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {hasPaymentOptions ? (
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">Select Payment Method</Label>
-                
-                <RadioGroup
-                  value={formData.paymentMethod}
-                  onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                  className="space-y-3"
-                >
-                  {/* M-Pesa Express (STK Push) */}
-                  {mpesaSettings?.is_enabled && (
-                    <div className="flex items-center space-x-3 p-4 rounded-lg border border-border bg-card hover:border-emerald-400 transition-colors">
-                      <RadioGroupItem value="stk" id="stk" />
-                      <Label htmlFor="stk" className="flex-1 cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                            <Smartphone className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">M-Pesa Express</p>
-                            <p className="text-sm text-muted-foreground">Instant payment via STK Push</p>
-                          </div>
-                        </div>
+            <div className="space-y-2"><Label className="flex items-center gap-2"><MapPin className="w-4 h-4" />County *</Label>
+              <Select value={formData.county} onValueChange={v => setFormData({ ...formData, county: v, subCounty: "", town: "", courier: "" })}>
+                <SelectTrigger><SelectValue placeholder="Select County" /></SelectTrigger>
+                <SelectContent className="max-h-60">{KENYA_LOCATIONS.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            {selCounty && <div className="space-y-2"><Label>Sub-County *</Label>
+              <Select value={formData.subCounty} onValueChange={v => setFormData({ ...formData, subCounty: v, town: "", courier: "" })}>
+                <SelectTrigger><SelectValue placeholder="Select Sub-County" /></SelectTrigger>
+                <SelectContent className="max-h-60">{selCounty.subCounties.map(s => <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+              </Select></div>}
+            {selSub && <div className="space-y-2"><Label>Town *</Label>
+              <Select value={formData.town} onValueChange={v => setFormData({ ...formData, town: v, courier: "" })}>
+                <SelectTrigger><SelectValue placeholder="Select Town" /></SelectTrigger>
+                <SelectContent className="max-h-60">{selSub.towns.map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
+              </Select></div>}
+            {selTown && selTown.couriers.length > 0 && (
+              <div className="space-y-2"><Label className="flex items-center gap-2"><Truck className="w-4 h-4" />Carrier *</Label>
+                <RadioGroup value={formData.courier} onValueChange={v => setFormData({ ...formData, courier: v })} className="space-y-2 max-h-72 overflow-y-auto">
+                  {selTown.couriers.map(c => (
+                    <div key={c} className="flex items-center space-x-3 p-3 border rounded-lg hover:border-emerald-400">
+                      <RadioGroupItem value={c} id={`co-${c}`} />
+                      <Label htmlFor={`co-${c}`} className="flex-1 cursor-pointer">
+                        <div className="font-medium">{COURIER_INFO[c]?.name || c}</div>
+                        <div className="text-xs text-muted-foreground">{COURIER_INFO[c]?.description}</div>
+                        <div className="text-sm font-bold text-emerald-600 mt-1">KES {getDeliveryFee(formData.county, c)} • {getEstimatedDays(formData.county, c)} days</div>
                       </Label>
                     </div>
-                  )}
-
-                  {/* Manual M-Pesa */}
-                  {mpesaSettings?.allow_manual_payment && (
-                    <div className="flex items-center space-x-3 p-4 rounded-lg border border-border bg-card hover:border-emerald-400 transition-colors">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual" className="flex-1 cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                            <CreditCard className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">Manual M-Pesa</p>
-                            <p className="text-sm text-muted-foreground">Pay via Till/Paybill & confirm</p>
-                          </div>
-                        </div>
-                      </Label>
-                    </div>
-                  )}
+                  ))}
                 </RadioGroup>
-
-                {/* Show payment details for manual method */}
-                {formData.paymentMethod === "manual" && contactInfo && (
-                  <Card className="bg-muted/50 border-dashed">
-                    <CardContent className="p-4 space-y-4">
-                      <h4 className="font-semibold text-foreground">M-Pesa Payment Details</h4>
-                      
-                      {contactInfo.till_number && (
-                        <div className="flex items-center justify-between p-3 bg-card rounded-lg border">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Till Number (Buy Goods)</p>
-                            <p className="font-bold text-lg">{contactInfo.till_number}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyToClipboard(contactInfo.till_number!)}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                      
-                      {contactInfo.paybill_number && (
-                        <div className="flex items-center justify-between p-3 bg-card rounded-lg border">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Paybill Number</p>
-                            <p className="font-bold text-lg">{contactInfo.paybill_number}</p>
-                            {contactInfo.account_number && (
-                              <p className="text-sm text-muted-foreground">Account: {contactInfo.account_number}</p>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyToClipboard(contactInfo.paybill_number!)}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-
-                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <p className="text-sm text-amber-800">
-                          <strong>Amount:</strong> KES {totalAmount.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-amber-600 mt-1">
-                          After payment, click "Place Order" and send confirmation via WhatsApp
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {formData.paymentMethod === "stk" && mpesaSettings?.is_enabled && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <Smartphone className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-green-800">M-Pesa Express Payment</p>
-                        <p className="text-sm text-green-700">
-                          You will receive an STK push prompt on <strong>{formData.phone}</strong> to enter your M-Pesa PIN.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label>Order Notes (Optional)</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Any special instructions..."
-                    rows={2}
-                    className="bg-card"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
-                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                <p className="text-amber-800">No payment methods available</p>
-                <p className="text-sm text-amber-600">Please contact the store.</p>
               </div>
             )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+              <Button className="flex-1 bg-emerald-500 hover:bg-emerald-600" onClick={() => setStep(3)} disabled={!formData.courier}>Continue to Payment</Button>
+            </div>
+          </div>
+        )}
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-                Back
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                className="flex-1 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-                disabled={loading || stkLoading || !hasPaymentOptions}
-              >
+        {step === 3 && (
+          <div className="space-y-4">
+            <Card className="bg-emerald-50 border-emerald-200"><CardContent className="p-4 space-y-1 text-sm">
+              <div className="flex justify-between"><span>Subtotal:</span><span>KES {productSubtotal.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span>Delivery:</span><span>KES {deliveryFee.toLocaleString()}</span></div>
+              <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span className="text-emerald-600">KES {totalAmount.toLocaleString()}</span></div>
+            </CardContent></Card>
+
+            {hasPayment ? (
+              <RadioGroup value={formData.paymentMethod} onValueChange={v => setFormData({ ...formData, paymentMethod: v })} className="space-y-2">
+                {mpesaSettings?.is_enabled && (
+                  <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                    <RadioGroupItem value="stk" id="stk" />
+                    <Label htmlFor="stk" className="flex-1 cursor-pointer flex items-center gap-2"><Smartphone className="w-4 h-4 text-green-600" /><div><p className="font-semibold">M-Pesa Express</p><p className="text-xs text-muted-foreground">Instant STK push</p></div></Label>
+                  </div>
+                )}
+                {mpesaSettings?.allow_manual_payment && (
+                  <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                    <RadioGroupItem value="manual" id="manual" />
+                    <Label htmlFor="manual" className="flex-1 cursor-pointer flex items-center gap-2"><CreditCard className="w-4 h-4 text-green-600" /><div><p className="font-semibold">Manual M-Pesa</p><p className="text-xs text-muted-foreground">Pay via Till/Paybill</p></div></Label>
+                  </div>
+                )}
+              </RadioGroup>
+            ) : <div className="p-4 bg-amber-50 rounded text-center text-sm">No payment methods configured</div>}
+
+            {formData.paymentMethod === "manual" && contactInfo && (
+              <Card className="bg-muted/40 border-dashed"><CardContent className="p-3 space-y-2 text-sm">
+                {contactInfo.till_number && <div className="flex justify-between items-center"><span>Till: <strong>{contactInfo.till_number}</strong></span><Button size="icon" variant="ghost" onClick={() => copy(contactInfo.till_number)}><Copy className="w-3 h-3" /></Button></div>}
+                {contactInfo.paybill_number && <div className="flex justify-between items-center"><span>Paybill: <strong>{contactInfo.paybill_number}</strong> {contactInfo.account_number && `Acc: ${contactInfo.account_number}`}</span><Button size="icon" variant="ghost" onClick={() => copy(contactInfo.paybill_number)}><Copy className="w-3 h-3" /></Button></div>}
+                <p className="text-xs text-amber-700">Pay KES {totalAmount.toLocaleString()} then place order</p>
+              </CardContent></Card>
+            )}
+
+            <div className="space-y-2"><Label>Notes (Optional)</Label>
+              <Textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} placeholder="Any special instructions..." /></div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+              <Button onClick={handleSubmit} disabled={loading || stkLoading || !hasPayment} className="flex-1 bg-emerald-500 hover:bg-emerald-600">
                 {(loading || stkLoading) ? <Loader2 className="w-4 h-4 animate-spin" /> : "Place Order"}
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Order Complete */}
-        {step === 3 && orderComplete && (
-          <div className="text-center space-y-6 py-4">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-emerald-400 to-green-500 flex items-center justify-center">
-              <CheckCircle className="w-10 h-10 text-white" />
-            </div>
-            
+        {step === 4 && orderComplete && (
+          <div className="text-center space-y-4 py-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500 flex items-center justify-center"><CheckCircle className="w-8 h-8 text-white" /></div>
             <div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Order Placed!</h3>
-              <p className="text-muted-foreground">
-                {formData.paymentMethod === "stk" 
-                  ? "Check your phone for the M-Pesa payment prompt."
-                  : "Your order has been received successfully."}
-              </p>
+              <h3 className="text-xl font-bold">Order Placed!</h3>
+              <p className="text-sm text-muted-foreground">Order #{orderNumber}</p>
             </div>
 
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Order Number</p>
-                <p className="text-xl font-bold text-foreground">{orderNumber}</p>
+            <Card className="bg-emerald-50 border-emerald-200">
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold"><FileText className="w-4 h-4 text-emerald-600" /> Your Invoice Link</div>
+                <div className="flex items-center gap-1">
+                  <Input readOnly value={invoiceUrl} className="text-xs bg-card" />
+                  <Button size="icon" variant="outline" onClick={() => copy(invoiceUrl)}><Copy className="w-3 h-3" /></Button>
+                  <Button size="icon" variant="outline" onClick={() => window.open(invoiceUrl, "_blank")}><ExternalLink className="w-3 h-3" /></Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Pay & download receipt from this link</p>
               </CardContent>
             </Card>
 
-            {formData.paymentMethod === "manual" && (
-              <>
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-left">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-amber-800">Next Step</p>
-                      <p className="text-sm text-amber-700">
-                        Please send your payment confirmation via WhatsApp to complete your order.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleWhatsAppConfirmation}
-                  className="w-full gap-2 bg-green-500 hover:bg-green-600"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Send Confirmation on WhatsApp
-                </Button>
-              </>
-            )}
-
-            {formData.paymentMethod === "stk" && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-left">
-                <div className="flex items-start gap-3">
-                  <Smartphone className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-green-800">Payment Initiated</p>
-                    <p className="text-sm text-green-700">
-                      Enter your M-Pesa PIN on your phone to complete payment. You'll receive a confirmation SMS once successful.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <Button variant="outline" onClick={resetAndClose} className="w-full">
-              Close
+            <Button onClick={sendWhatsAppWithInvoice} className="w-full bg-green-500 hover:bg-green-600 gap-2">
+              <MessageCircle className="w-4 h-4" />Send Invoice via WhatsApp
             </Button>
+            <Button variant="outline" onClick={() => window.open(invoiceUrl, "_blank")} className="w-full gap-2">
+              <FileText className="w-4 h-4" />Open Invoice Page
+            </Button>
+            <Button variant="ghost" onClick={reset} className="w-full">Close</Button>
           </div>
         )}
       </DialogContent>
