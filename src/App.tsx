@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import ProductDetails from "./pages/ProductDetails";
 import MyOrders from "./pages/MyOrders";
+import Invoice from "./pages/Invoice";
 import NotFound from "./pages/NotFound";
 import CartSheet from "./components/CartSheet";
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/my-orders" element={<MyOrders />} />
+            <Route path="/invoice/:orderNumber" element={<Invoice />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
