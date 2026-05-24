@@ -69,6 +69,19 @@ export const CARRIERS: Carrier[] = [
   { id: "simba_coach", name: "Simba Coach", type: "bus", description: "Kisumu & Lake region", estimatedDays: 1, baseFee: 280, regions: ["Nairobi", "Kisumu", "Siaya", "Homa Bay"] },
   { id: "coast_bus", name: "Coast Bus", type: "bus", description: "Reliable coast service", estimatedDays: 1, baseFee: 350, regions: ["Nairobi", "Mombasa", "Kilifi", "Malindi"] },
   { id: "crown_bus", name: "Crown Bus", type: "bus", description: "North Rift service", estimatedDays: 1, baseFee: 300, regions: ["Nairobi", "Nakuru", "Eldoret", "Kapsabet"] },
+
+  // Additional Couriers & Logistics
+  { id: "dhl", name: "DHL Express Kenya", type: "courier", description: "International & express domestic delivery", estimatedDays: 1, baseFee: 600, regions: ["nationwide"] },
+  { id: "aramex", name: "Aramex Kenya", type: "courier", description: "Global courier with door-to-door service", estimatedDays: 2, baseFee: 500, regions: ["nationwide"] },
+  { id: "speedaf", name: "Speedaf Express", type: "courier", description: "Affordable e-commerce logistics", estimatedDays: 2, baseFee: 320, regions: ["nationwide"] },
+  { id: "pickup_mtaani", name: "Pickup Mtaani", type: "courier", description: "Network pickup points across Kenya", estimatedDays: 2, baseFee: 200, regions: ["nationwide"] },
+  { id: "glovo", name: "Glovo", type: "courier", description: "Same-day in-city delivery", estimatedDays: 1, baseFee: 250, regions: ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"] },
+  { id: "bolt_delivery", name: "Bolt Delivery", type: "courier", description: "On-demand rider delivery", estimatedDays: 1, baseFee: 220, regions: ["Nairobi", "Mombasa", "Kisumu"] },
+  { id: "little_cargo", name: "Little Cargo", type: "courier", description: "Affordable cargo by Little", estimatedDays: 1, baseFee: 230, regions: ["Nairobi", "Mombasa", "Kisumu", "Nakuru"] },
+  { id: "ride_link", name: "Ride Link Courier", type: "courier", description: "Boda boda parcel delivery", estimatedDays: 1, baseFee: 180, regions: ["Nairobi", "Kiambu", "Machakos"] },
+  { id: "ena_coach", name: "Ena Coach", type: "bus", description: "Eastern & Mt Kenya routes", estimatedDays: 1, baseFee: 280, regions: ["Nairobi", "Meru", "Embu", "Tharaka Nithi", "Nyeri"] },
+  { id: "mash_cool", name: "Mash Cool", type: "bus", description: "Mombasa premium overnight", estimatedDays: 1, baseFee: 380, regions: ["Nairobi", "Mombasa"] },
+  { id: "climax_coach", name: "Climax Coach", type: "bus", description: "Western Kenya routes", estimatedDays: 1, baseFee: 320, regions: ["Nairobi", "Kisumu", "Kakamega", "Bungoma"] },
 ];
 
 // Helper to get carrier info

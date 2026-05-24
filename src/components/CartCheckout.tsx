@@ -109,8 +109,19 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
 
   const handleWhatsAppConfirm = () => {
     if (!contactInfo) return;
-    const message = encodeURIComponent(`🧾 Order: ${orderNumber}\n💰 Total: KES ${grandTotal.toLocaleString()}\n📍 Delivery: ${formData.town}, ${formData.county}\n🚚 Courier: ${formData.courier}\n\nI have completed payment. Please confirm.`);
-    window.open(`https://wa.me/${contactInfo.whatsapp_number.replace(/[^0-9]/g, '')}?text=${message}`, '_blank');
+    const invoiceUrl = `${window.location.origin}/invoice/${orderNumber}`;
+    const payload = {
+      type: "order_invoice",
+      order_number: orderNumber,
+      invoice_url: invoiceUrl,
+      customer: { name: formData.name, phone: formData.phone, email: formData.email || null },
+      delivery: { county: formData.county, sub_county: formData.subCounty, town: formData.town, courier: formData.courier, fee: deliveryFee, estimated_days: estimatedDays },
+      items: items.map(i => ({ product_id: i.product?.id, name: i.product?.name, qty: i.quantity, price: i.product?.price })),
+      total: grandTotal,
+      currency: "KES",
+    };
+    const text = `🧾 *Order Invoice*\n\n📋 ${orderNumber}\n💰 KES ${grandTotal.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${formData.courier}\n\n🔗 Invoice: ${invoiceUrl}\n\n\`\`\`${JSON.stringify(payload, null, 2)}\`\`\``;
+    window.open(`https://wa.me/${contactInfo.whatsapp_number.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
