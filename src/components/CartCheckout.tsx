@@ -120,7 +120,7 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
       total: grandTotal,
       currency: "KES",
     };
-    const text = `🧾 *Order Invoice*\n\n📋 ${orderNumber}\n💰 KES ${grandTotal.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${formData.courier}\n\n🔗 Invoice: ${invoiceUrl}\n\n\`\`\`${JSON.stringify(payload, null, 2)}\`\`\``;
+    const text = `🧾 *Order Invoice*\n\n📋 Order: ${orderNumber}\n💰 Total: KES ${grandTotal.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${formData.courier}\n\n🔗 *Invoice Link (tap to open):*\n${invoiceUrl}\n\n--- ORDER DETAILS (JSON) ---\n${JSON.stringify(payload, null, 2)}\n--- END ---\n\nPlease confirm receipt. Thank you!`;
     window.open(`https://wa.me/${contactInfo.whatsapp_number.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
