@@ -155,7 +155,7 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
       currency: "KES",
       payment_method: formData.paymentMethod,
     };
-    const text = `🧾 *New Order Invoice*\n\n📋 Order: ${orderNumber}\n📦 ${product.name} x${formData.quantity}\n💰 Total: KES ${totalAmount.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${COURIER_INFO[formData.courier]?.name || formData.courier}\n\n🔗 *Invoice Link:*\n${invoiceUrl}\n\n*Order JSON:*\n\`\`\`${JSON.stringify(payload, null, 2)}\`\`\``;
+    const text = `🧾 *New Order Invoice*\n\n📋 Order: ${orderNumber}\n📦 ${product.name} x${formData.quantity}\n💰 Total: KES ${totalAmount.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${COURIER_INFO[formData.courier]?.name || formData.courier}\n\n🔗 *Invoice Link (tap to open):*\n${invoiceUrl}\n\n--- ORDER DETAILS (JSON) ---\n${JSON.stringify(payload, null, 2)}\n--- END ---\n\nPlease confirm receipt. Thank you!`;
     const phone = contactInfo.whatsapp_number.replace(/[^0-9]/g, "");
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
   };
