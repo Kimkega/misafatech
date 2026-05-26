@@ -16,7 +16,7 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users, Truck
+  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users, Truck, UserPlus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -26,6 +26,7 @@ import AdminOrders from "@/components/admin/AdminOrders";
 import AdminSmsSettings from "@/components/admin/AdminSmsSettings";
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminShipping from "@/components/admin/AdminShipping";
+import AdminSuppliers from "@/components/admin/AdminSuppliers";
 
 interface Product {
   id: string;
@@ -154,6 +155,7 @@ const Admin = () => {
     category: "",
     image_url: "",
     payment_info: "",
+    supplier_email: "",
     is_featured: false,
     is_todays_deal: false,
   });
@@ -257,6 +259,7 @@ const Admin = () => {
       category: "",
       image_url: "",
       payment_info: "",
+      supplier_email: "",
       is_featured: false,
       is_todays_deal: false,
     });
@@ -277,6 +280,7 @@ const Admin = () => {
       category: product.category,
       image_url: product.image_url || "",
       payment_info: product.payment_info || "",
+      supplier_email: (product as any).supplier_email || "",
       is_featured: product.is_featured || false,
       is_todays_deal: product.is_todays_deal || false,
     });
