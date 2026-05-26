@@ -19,17 +19,13 @@ const Index = () => {
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
 
   useEffect(() => {
-    fetchContactInfo();
-  }, []);
-
-  const fetchContactInfo = async () => {
-    const { data } = await supabase
+    supabase
       .from("contact_info")
       .select("whatsapp_number")
       .limit(1)
-      .single();
-    if (data) setContactInfo(data);
-  };
+      .single()
+      .then(({ data }) => data && setContactInfo(data));
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -41,7 +37,10 @@ const Index = () => {
       </div>
       <FeaturedProducts />
       <ProductsSection />
-      <EnergyCalculator contactInfo={contactInfo} />
+      {/* Energy Calculator now sits directly under the Solar & Energy product flow */}
+      <div id="solar-energy">
+        <EnergyCalculator contactInfo={contactInfo} />
+      </div>
       <Features />
       <Contact />
       <Footer />
