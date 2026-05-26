@@ -107,21 +107,22 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
     }
   };
 
-  const handleWhatsAppConfirm = () => {
+  const handleWhatsAppConfirm = async () => {
     if (!contactInfo) return;
     const invoiceUrl = `${window.location.origin}/invoice/${orderNumber}`;
-    const payload = {
-      type: "order_invoice",
-      order_number: orderNumber,
-      invoice_url: invoiceUrl,
-      customer: { name: formData.name, phone: formData.phone, email: formData.email || null },
-      delivery: { county: formData.county, sub_county: formData.subCounty, town: formData.town, courier: formData.courier, fee: deliveryFee, estimated_days: estimatedDays },
-      items: items.map(i => ({ product_id: i.product?.id, name: i.product?.name, qty: i.quantity, price: i.product?.price })),
+    const itemsSummary = items.map(i => `${i.product?.name} × ${i.quantity}`).join(", ");
+    const { buildInvoiceMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildInvoiceMessage({
+      orderNumber,
+      invoiceUrl,
+      customerName: formData.name,
+      customerPhone: formData.phone,
+      itemsSummary,
       total: grandTotal,
-      currency: "KES",
-    };
-    const text = `🧾 *Order Invoice*\n\n📋 Order: ${orderNumber}\n💰 Total: KES ${grandTotal.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${formData.courier}\n\n🔗 *Invoice Link (tap to open):*\n${invoiceUrl}\n\n--- ORDER DETAILS (JSON) ---\n${JSON.stringify(payload, null, 2)}\n--- END ---\n\nPlease confirm receipt. Thank you!`;
-    window.open(`https://wa.me/${contactInfo.whatsapp_number.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
+      deliverTo: [formData.town, formData.subCounty, formData.county].filter(Boolean).join(", "),
+      carrier: formData.courier,
+      paymentMethod: formData.paymentMethod === "stk" ? "M-Pesa Express" : "Manual M-Pesa",
+    }));
   };
 
   return (

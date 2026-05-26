@@ -23,19 +23,13 @@ const ProductCard = ({
   paymentInfo,
   whatsappNumber,
 }: ProductCardProps) => {
-  const handleWhatsAppBuy = () => {
-    const message = encodeURIComponent(
-      `🛒 *Order Request - MISAFA Technologies*\n\n` +
-      `📦 *Product:* ${name}\n` +
-      `💰 *Price:* KES ${price.toLocaleString()}\n` +
-      `📂 *Category:* ${category}\n\n` +
-      `📝 *Description:* ${description}\n\n` +
-      `${paymentInfo ? `💳 *Payment Info:*\n${paymentInfo}\n\n` : ''}` +
-      `I'm interested in purchasing this product. Please confirm availability and payment details.`
-    );
-    
-    const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+  const handleWhatsAppBuy = async () => {
+    const { buildInquiryMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(whatsappNumber, buildInquiryMessage({
+      productName: name,
+      price,
+      category,
+    }));
   };
 
   return (

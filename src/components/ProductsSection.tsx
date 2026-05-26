@@ -79,21 +79,14 @@ const ProductsSection = () => {
     return result;
   }, [products, selectedCategory, searchQuery]);
 
-  const handleWhatsAppBuy = (product: Product) => {
+  const handleWhatsAppBuy = async (product: Product) => {
     if (!contactInfo) return;
-    
-    const message = encodeURIComponent(
-      `🛒 *Order Request*\n\n` +
-      `📦 *Product:* ${product.name}\n` +
-      `💰 *Price:* KES ${product.price.toLocaleString()}\n` +
-      `📂 *Category:* ${product.category}\n\n` +
-      `${product.description ? `📝 *Description:* ${product.description}\n\n` : ''}` +
-      `${product.payment_info ? `💳 *Payment Info:*\n${product.payment_info}\n\n` : ''}` +
-      `I'm interested in purchasing this product. Please confirm availability.`
-    );
-    
-    const cleanNumber = contactInfo.whatsapp_number.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+    const { buildInquiryMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildInquiryMessage({
+      productName: product.name,
+      price: product.price,
+      category: product.category,
+    }));
   };
 
   return (

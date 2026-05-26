@@ -85,21 +85,15 @@ const ProductDetails = () => {
     }
   };
 
-  const handleWhatsAppBuy = () => {
+  const handleWhatsAppBuy = async () => {
     if (!product || !contactInfo) return;
-    
-    const message = encodeURIComponent(
-      `🛒 *Order Request - MISAFA Technologies*\n\n` +
-      `📦 *Product:* ${product.name}\n` +
-      `💰 *Price:* KES ${product.price.toLocaleString()}\n` +
-      `📂 *Category:* ${product.category}\n\n` +
-      `📝 *Description:* ${product.description}\n\n` +
-      `${product.payment_info ? `💳 *Payment Info:*\n${product.payment_info}\n\n` : ''}` +
-      `I'm interested in purchasing this product. Please confirm availability and payment details.`
-    );
-    
-    const cleanNumber = contactInfo.whatsapp_number.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+    const { buildInquiryMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildInquiryMessage({
+      productName: product.name,
+      price: product.price,
+      category: product.category,
+      productUrl: window.location.href,
+    }));
   };
 
   const handleShare = async () => {

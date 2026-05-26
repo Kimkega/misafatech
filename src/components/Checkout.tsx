@@ -142,22 +142,20 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
 
   const copy = (t: string) => { navigator.clipboard.writeText(t); toast({ title: "Copied!" }); };
 
-  const sendWhatsAppWithInvoice = () => {
+  const sendWhatsAppWithInvoice = async () => {
     if (!contactInfo) return;
-    const payload = {
-      type: "order_invoice",
-      order_number: orderNumber,
-      invoice_url: invoiceUrl,
-      customer: { name: formData.name, phone: formData.phone, email: formData.email || null },
-      delivery: { county: formData.county, sub_county: formData.subCounty, town: formData.town, courier: formData.courier, fee: deliveryFee, estimated_days: estDays },
-      items: [{ product_id: product.id, name: product.name, qty: formData.quantity, price: product.price }],
+    const { buildInvoiceMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildInvoiceMessage({
+      orderNumber,
+      invoiceUrl,
+      customerName: formData.name,
+      customerPhone: formData.phone,
+      itemsSummary: `${product.name} × ${formData.quantity}`,
       total: totalAmount,
-      currency: "KES",
-      payment_method: formData.paymentMethod,
-    };
-    const text = `🧾 *New Order Invoice*\n\n📋 Order: ${orderNumber}\n📦 ${product.name} x${formData.quantity}\n💰 Total: KES ${totalAmount.toLocaleString()}\n📍 ${formData.town}, ${formData.county}\n🚚 ${COURIER_INFO[formData.courier]?.name || formData.courier}\n\n🔗 *Invoice Link (tap to open):*\n${invoiceUrl}\n\n--- ORDER DETAILS (JSON) ---\n${JSON.stringify(payload, null, 2)}\n--- END ---\n\nPlease confirm receipt. Thank you!`;
-    const phone = contactInfo.whatsapp_number.replace(/[^0-9]/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
+      deliverTo: [formData.town, formData.subCounty, formData.county].filter(Boolean).join(", "),
+      carrier: COURIER_INFO[formData.courier]?.name || formData.courier,
+      paymentMethod: formData.paymentMethod === "stk" ? "M-Pesa Express" : "Manual M-Pesa",
+    }));
   };
 
   const reset = () => {

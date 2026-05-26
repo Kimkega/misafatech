@@ -347,6 +347,7 @@ export type Database = {
           name: string
           payment_info: string | null
           price: number
+          supplier_email: string | null
           updated_at: string
         }
         Insert: {
@@ -360,6 +361,7 @@ export type Database = {
           name: string
           payment_info?: string | null
           price: number
+          supplier_email?: string | null
           updated_at?: string
         }
         Update: {
@@ -373,6 +375,7 @@ export type Database = {
           name?: string
           payment_info?: string | null
           price?: number
+          supplier_email?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -491,6 +494,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -524,9 +563,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_supplier_of_product: {
+        Args: { _product_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "supplier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -654,7 +697,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "supplier"],
     },
   },
 } as const

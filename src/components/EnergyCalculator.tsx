@@ -217,24 +217,24 @@ const EnergyCalculator = ({ contactInfo }: EnergyCalculatorProps) => {
       selectedNames.push(`${a.quantity}x ${a.name} (${a.watts}W)`);
     });
     
-    const message = encodeURIComponent(
-      `☀️ *SOLAR SYSTEM INQUIRY - Energy Calculator*\n\n` +
-      `📊 *My Energy Requirements:*\n` +
-      `• Daily consumption: ${(results.dailyEnergy / 1000).toFixed(2)} kWh\n` +
-      `• Peak load: ${results.peakWatts}W\n` +
-      `• Appliances: ${selectedNames.join(", ") || 'Custom setup'}\n\n` +
-      `📦 *Recommended System:*\n` +
-      `• Solar Panels: ${results.panelCount}x 400W (${results.solarWatts}W total)\n` +
-      `• Batteries: ${results.batteryCount}x 200Ah ${results.systemVoltage}V\n` +
-      `• Inverter: ${(results.inverterSize / 1000).toFixed(1)}kW\n` +
-      `• Charge Controller: ${results.chargeController}A MPPT\n` +
-      `• Est. Monthly Production: ${results.monthlyProduction} kWh\n\n` +
-      `💰 Estimated Budget: KES ${results.estimatedCost.toLocaleString()}\n\n` +
-      `I'd like to get a detailed quote for this solar system. Please advise on exact pricing and installation.`
+    const summary = [
+      `• Daily consumption: ${(results.dailyEnergy / 1000).toFixed(2)} kWh`,
+      `• Peak load: ${results.peakWatts}W`,
+      `• Appliances: ${selectedNames.join(", ") || "Custom setup"}`,
+      ``,
+      `Recommended system:`,
+      `• Solar Panels: ${results.panelCount}× 400W (${results.solarWatts}W total)`,
+      `• Batteries: ${results.batteryCount}× 200Ah ${results.systemVoltage}V`,
+      `• Inverter: ${(results.inverterSize / 1000).toFixed(1)}kW`,
+      `• Charge Controller: ${results.chargeController}A MPPT`,
+      `• Est. Monthly Production: ${results.monthlyProduction} kWh`,
+      ``,
+      `Estimated Budget: KES ${results.estimatedCost.toLocaleString()}`,
+    ].join("\n");
+
+    import("@/lib/whatsapp").then(({ buildSolarInquiryMessage, openWhatsApp }) =>
+      openWhatsApp(contactInfo.whatsapp_number, buildSolarInquiryMessage(summary))
     );
-    
-    const cleanNumber = contactInfo.whatsapp_number.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
   };
 
   const totalSelectedCount = Array.from(selectedAppliances.values()).reduce((a, b) => a + b, 0) + customAppliances.reduce((a, c) => a + c.quantity, 0);

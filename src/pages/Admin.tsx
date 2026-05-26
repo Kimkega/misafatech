@@ -16,7 +16,7 @@ import {
   Shield, LogOut, Plus, Pencil, Trash2, Loader2, 
   Package, Settings, ArrowLeft, Save, Star, Flame,
   Upload, Image as ImageIcon, Tag, ShoppingBag, CreditCard,
-  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users, Truck
+  Mail, ChevronRight, LayoutDashboard, TrendingUp, Users, Truck, UserPlus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -26,6 +26,7 @@ import AdminOrders from "@/components/admin/AdminOrders";
 import AdminSmsSettings from "@/components/admin/AdminSmsSettings";
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminShipping from "@/components/admin/AdminShipping";
+import AdminSuppliers from "@/components/admin/AdminSuppliers";
 
 interface Product {
   id: string;
@@ -154,6 +155,7 @@ const Admin = () => {
     category: "",
     image_url: "",
     payment_info: "",
+    supplier_email: "",
     is_featured: false,
     is_todays_deal: false,
   });
@@ -257,6 +259,7 @@ const Admin = () => {
       category: "",
       image_url: "",
       payment_info: "",
+      supplier_email: "",
       is_featured: false,
       is_todays_deal: false,
     });
@@ -277,6 +280,7 @@ const Admin = () => {
       category: product.category,
       image_url: product.image_url || "",
       payment_info: product.payment_info || "",
+      supplier_email: (product as any).supplier_email || "",
       is_featured: product.is_featured || false,
       is_todays_deal: product.is_todays_deal || false,
     });
@@ -342,6 +346,7 @@ const Admin = () => {
       category: productForm.category,
       image_url: productForm.image_url.trim() || null,
       payment_info: productForm.payment_info.trim() || null,
+      supplier_email: productForm.supplier_email.trim() || null,
       is_featured: productForm.is_featured,
       is_todays_deal: productForm.is_todays_deal,
     };
@@ -725,6 +730,10 @@ const Admin = () => {
               <Users className="w-4 h-4" />
               Users
             </TabsTrigger>
+            <TabsTrigger value="suppliers" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+              <UserPlus className="w-4 h-4" />
+              Suppliers
+            </TabsTrigger>
             <TabsTrigger value="shipping" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <Truck className="w-4 h-4" />
               Shipping
@@ -882,6 +891,22 @@ const Admin = () => {
                         placeholder="Till: 123456 | Paybill: 789012 Account: MISAFA"
                         rows={2}
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <UserPlus className="w-4 h-4 text-rose-500" />
+                        Supplier Email
+                      </Label>
+                      <Input
+                        type="email"
+                        value={productForm.supplier_email}
+                        onChange={(e) => setProductForm({ ...productForm, supplier_email: e.target.value })}
+                        placeholder="supplier@example.com (orders route to this supplier's portal)"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Link this product to a supplier in <strong>Suppliers</strong> tab. They'll see & fulfill orders for it.
+                      </p>
                     </div>
                     
                     {/* Featured & Deal toggles */}
@@ -1174,6 +1199,16 @@ const Admin = () => {
               <p className="text-muted-foreground">Manage users and their roles</p>
             </div>
             <AdminUsers />
+          </TabsContent>
+
+          {/* Suppliers Tab */}
+          <TabsContent value="suppliers">
+            <AdminSuppliers />
+          </TabsContent>
+
+          {/* Shipping Tab */}
+          <TabsContent value="shipping">
+            <AdminShipping />
           </TabsContent>
 
           {/* Settings Tab */}

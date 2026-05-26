@@ -49,19 +49,14 @@ const FeaturedProducts = () => {
     }
   };
 
-  const handleWhatsAppBuy = (product: Product) => {
+  const handleWhatsAppBuy = async (product: Product) => {
     if (!contactInfo) return;
-    
-    const message = encodeURIComponent(
-      `🛒 *Order Request - MISAFA Technologies*\n\n` +
-      `📦 *Product:* ${product.name}\n` +
-      `💰 *Price:* KES ${product.price.toLocaleString()}\n` +
-      `📂 *Category:* ${product.category}\n\n` +
-      `I'm interested in purchasing this product. Please confirm availability.`
-    );
-    
-    const cleanNumber = contactInfo.whatsapp_number.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+    const { buildInquiryMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildInquiryMessage({
+      productName: product.name,
+      price: product.price,
+      category: product.category,
+    }));
   };
 
   if (loading) {

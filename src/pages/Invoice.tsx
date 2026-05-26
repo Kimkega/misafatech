@@ -98,19 +98,16 @@ const Invoice = () => {
     }
   };
 
-  const sendWhatsAppPayment = () => {
+  const sendWhatsAppPayment = async () => {
     if (!order || !contactInfo) return;
-    const payload = {
-      type: "invoice_payment_confirmation",
-      order_number: order.order_number,
-      invoice_url: invoiceUrl,
-      customer: { name: order.customer_name, phone: order.customer_phone },
+    const { buildPaymentConfirmationMessage, openWhatsApp } = await import("@/lib/whatsapp");
+    openWhatsApp(contactInfo.whatsapp_number, buildPaymentConfirmationMessage({
+      orderNumber: order.order_number,
+      invoiceUrl,
+      itemName: order.product_name,
       total: order.total_amount,
-      currency: "KES",
-    };
-    const text = `🧾 *Invoice Payment Confirmation*\n\n📋 Order: ${order.order_number}\n💰 Total: KES ${order.total_amount.toLocaleString()}\n📦 ${order.product_name}\n\n🔗 Invoice: ${invoiceUrl}\n\n\`\`\`${JSON.stringify(payload, null, 2)}\`\`\`\n\nI have paid. Please confirm.`;
-    const phone = contactInfo.whatsapp_number.replace(/[^0-9]/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
+      customerName: order.customer_name,
+    }));
   };
 
   const downloadReceipt = () => {
