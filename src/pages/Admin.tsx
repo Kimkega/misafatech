@@ -346,6 +346,7 @@ const Admin = () => {
       category: productForm.category,
       image_url: productForm.image_url.trim() || null,
       payment_info: productForm.payment_info.trim() || null,
+      supplier_email: productForm.supplier_email.trim() || null,
       is_featured: productForm.is_featured,
       is_todays_deal: productForm.is_todays_deal,
     };
