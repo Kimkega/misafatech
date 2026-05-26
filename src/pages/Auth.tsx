@@ -23,19 +23,16 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const checkAdminAndRedirect = async (userId: string) => {
+  const checkRoleAndRedirect = async (userId: string) => {
     const { data } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    
-    if (data) {
-      navigate("/admin");
-    } else {
-      navigate("/my-orders");
-    }
+      .eq("user_id", userId);
+
+    const roles = (data || []).map((r: any) => r.role);
+    if (roles.includes("admin")) navigate("/admin");
+    else if (roles.includes("supplier")) navigate("/supplier");
+    else navigate("/my-orders");
   };
 
   useEffect(() => {
@@ -43,7 +40,7 @@ const Auth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user && event === "SIGNED_IN") {
-        checkAdminAndRedirect(session.user.id);
+        checkRoleAndRedirect(session.user.id);
       }
     });
 
@@ -51,7 +48,7 @@ const Auth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAdminAndRedirect(session.user.id);
+        checkRoleAndRedirect(session.user.id);
       }
     });
 
