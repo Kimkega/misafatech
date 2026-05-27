@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { KENYA_LOCATIONS, COURIER_INFO, getDeliveryFee, getEstimatedDays } from "@/data/kenyaLocations";
 import { Loader2, MapPin, Truck, CreditCard, CheckCircle, MessageCircle, User, Phone, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { createOrderItems, notifySuppliersForOrder, type OrderLineInput } from "@/lib/orderAutomation";
 
 interface CartCheckoutProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [completedLines, setCompletedLines] = useState<OrderLineInput[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -82,6 +84,16 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
 
       if (error) throw error;
       setOrderNumber(data.order_number);
+      const lines = items.map((i) => ({
+        productId: i.product?.id || i.product_id,
+        productName: i.product?.name || "Product",
+        supplierEmail: i.product?.supplier_email || null,
+        quantity: i.quantity,
+        unitPrice: i.product?.price || 0,
+      }));
+      await createOrderItems(data.id, lines);
+      await notifySuppliersForOrder({ orderId: data.id, orderNumber: data.order_number, customerName: formData.name, total: grandTotal, origin: window.location.origin, lines });
+      setCompletedLines(lines);
 
       // Send SMS notification for order placed
       try {
@@ -110,11 +122,13 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
   const handleWhatsAppConfirm = async () => {
     if (!contactInfo) return;
     const invoiceUrl = `${window.location.origin}/invoice/${orderNumber}`;
-    const itemsSummary = items.map(i => `${i.product?.name} × ${i.quantity}`).join(", ");
+    const itemsSummary = completedLines.map(i => `${i.productName} × ${i.quantity}`).join(", ");
     const { buildInvoiceMessage, openWhatsApp } = await import("@/lib/whatsapp");
     openWhatsApp(contactInfo.whatsapp_number, buildInvoiceMessage({
       orderNumber,
       invoiceUrl,
+      receiptUrl: `${window.location.origin}/receipt/${orderNumber}`,
+      productUrl: completedLines[0]?.productId ? `${window.location.origin}/product/${completedLines[0].productId}` : undefined,
       customerName: formData.name,
       customerPhone: formData.phone,
       itemsSummary,
