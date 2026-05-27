@@ -31,6 +31,7 @@ interface Product {
   payment_info: string | null;
   is_featured: boolean | null;
   is_todays_deal: boolean | null;
+  supplier_email?: string | null;
 }
 
 interface ContactInfo {
