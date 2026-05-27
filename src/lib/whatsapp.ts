@@ -56,6 +56,8 @@ export function buildSolarInquiryMessage(summary: string) {
 export function buildInvoiceMessage(opts: {
   orderNumber: string;
   invoiceUrl: string;
+  receiptUrl?: string;
+  productUrl?: string;
   customerName: string;
   customerPhone: string;
   itemsSummary: string; // e.g. "Solar Panel 250W × 2"
@@ -78,6 +80,12 @@ export function buildInvoiceMessage(opts: {
     ``,
     `Invoice & payment link:`,
     opts.invoiceUrl,
+    opts.receiptUrl ? `` : null,
+    opts.receiptUrl ? `Receipt download link after payment:` : null,
+    opts.receiptUrl || null,
+    opts.productUrl ? `` : null,
+    opts.productUrl ? `Product details:` : null,
+    opts.productUrl || null,
     ``,
     `— ${opts.customerName} · ${opts.customerPhone}`,
   ]
@@ -88,6 +96,8 @@ export function buildInvoiceMessage(opts: {
 export function buildPaymentConfirmationMessage(opts: {
   orderNumber: string;
   invoiceUrl: string;
+  receiptUrl?: string;
+  productUrl?: string;
   itemName: string;
   total: number;
   customerName: string;
@@ -101,9 +111,11 @@ export function buildPaymentConfirmationMessage(opts: {
     `Total:   KES ${opts.total.toLocaleString()}`,
     ``,
     `Invoice: ${opts.invoiceUrl}`,
+    opts.receiptUrl ? `Receipt PDF: ${opts.receiptUrl}` : null,
+    opts.productUrl ? `Product: ${opts.productUrl}` : null,
     ``,
     `I have paid. Please confirm and proceed with delivery.`,
     ``,
     `— ${opts.customerName}`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }

@@ -54,6 +54,8 @@ const TodaysDeals = () => {
     openWhatsApp(contactInfo.whatsapp_number, buildInquiryMessage({
       productName: `🔥 Today's Deal — ${product.name}`,
       price: product.price,
+      category: product.category,
+      productUrl: `${window.location.origin}/product/${product.id}`,
     }));
   };
 

@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -52,27 +56,38 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Create auth user (auto-confirmed so supplier can log in immediately)
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name, role: "supplier" },
-    });
-    if (createErr) throw createErr;
+    const { data: existingUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const existing = existingUsers?.users?.find((u) => u.email?.toLowerCase() === String(email).toLowerCase());
+    let newUserId = existing?.id;
 
-    const newUserId = created.user!.id;
+    if (existing) {
+      const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
+        password,
+        email_confirm: true,
+        user_metadata: { ...(existing.user_metadata || {}), full_name, role: "supplier" },
+      });
+      if (updateErr) throw updateErr;
+    } else {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name, role: "supplier" },
+      });
+      if (createErr) throw createErr;
+      newUserId = created.user!.id;
+    }
 
     // Assign supplier role
     await admin.from("user_roles").upsert(
-      { user_id: newUserId, role: "supplier" as any },
+      { user_id: newUserId!, role: "supplier" as any },
       { onConflict: "user_id,role" }
     );
 
     // Insert supplier record
     const { error: supErr } = await admin.from("suppliers").upsert(
       {
-        user_id: newUserId,
+        user_id: newUserId!,
         email,
         full_name: full_name || null,
         phone: phone || null,

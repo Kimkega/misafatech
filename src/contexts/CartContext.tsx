@@ -12,6 +12,7 @@ interface CartItem {
     price: number;
     image_url: string | null;
     category: string;
+      supplier_email?: string | null;
   };
 }
 
@@ -67,7 +68,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const sessionId = getSessionId();
       let query = supabase
         .from("cart_items")
-        .select(`*, product:products(id, name, price, image_url, category)`);
+        .select(`*, product:products(id, name, price, image_url, category, supplier_email)`);
 
       if (user) {
         query = query.eq("user_id", user.id);

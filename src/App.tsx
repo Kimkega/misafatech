@@ -16,6 +16,7 @@ const Supplier = lazy(() => import("./pages/Supplier"));
 const ProductDetails = lazy(() => import("./pages/ProductDetails"));
 const MyOrders = lazy(() => import("./pages/MyOrders"));
 const Invoice = lazy(() => import("./pages/Invoice"));
+const Receipt = lazy(() => import("./pages/Receipt"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/my-orders" element={<MyOrders />} />
               <Route path="/invoice/:orderNumber" element={<Invoice />} />
+              <Route path="/receipt/:orderNumber" element={<Receipt />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

@@ -86,6 +86,7 @@ const ProductsSection = () => {
       productName: product.name,
       price: product.price,
       category: product.category,
+      productUrl: `${window.location.origin}/product/${product.id}`,
     }));
   };
 

@@ -249,6 +249,42 @@ export type Database = {
         }
         Relationships: []
       }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          supplier_email: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          supplier_email?: string | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          supplier_email?: string | null
+          unit_price?: number
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           county: string | null
@@ -494,6 +530,60 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          message: string
+          order_id: string
+          order_number: string
+          product_id: string | null
+          product_name: string
+          quick_link: string
+          read_at: string | null
+          sent_at: string | null
+          status: string
+          supplier_email: string
+          supplier_user_id: string | null
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message: string
+          order_id: string
+          order_number: string
+          product_id?: string | null
+          product_name: string
+          quick_link: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+          supplier_email: string
+          supplier_user_id?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          order_id?: string
+          order_number?: string
+          product_id?: string | null
+          product_name?: string
+          quick_link?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+          supplier_email?: string
+          supplier_user_id?: string | null
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           company: string | null
@@ -565,6 +655,10 @@ export type Database = {
       }
       is_supplier_of_product: {
         Args: { _product_id: string; _user_id: string }
+        Returns: boolean
+      }
+      supplier_can_access_order: {
+        Args: { _order_id: string; _user_id: string }
         Returns: boolean
       }
     }

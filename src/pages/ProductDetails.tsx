@@ -31,6 +31,7 @@ interface Product {
   payment_info: string | null;
   is_featured: boolean | null;
   is_todays_deal: boolean | null;
+  supplier_email?: string | null;
 }
 
 interface ContactInfo {
@@ -147,7 +148,7 @@ const ProductDetails = () => {
       
       {product && (
         <Checkout
-          product={{ id: product.id, name: product.name, price: product.price, image_url: product.image_url }}
+          product={{ id: product.id, name: product.name, price: product.price, image_url: product.image_url, supplier_email: product.supplier_email }}
           isOpen={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
         />
