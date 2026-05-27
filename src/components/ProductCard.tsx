@@ -15,6 +15,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({
+  id,
   name,
   description,
   price,
@@ -29,6 +30,7 @@ const ProductCard = ({
       productName: name,
       price,
       category,
+      productUrl: `${window.location.origin}/product/${id}`,
     }));
   };
 
