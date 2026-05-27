@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { KENYA_LOCATIONS, COURIER_INFO, getDeliveryFee, getEstimatedDays } from "@/data/kenyaLocations";
+import { createOrderItems, notifySuppliersForOrder } from "@/lib/orderAutomation";
 
-interface Product { id: string; name: string; price: number; image_url: string | null; }
+interface Product { id: string; name: string; price: number; image_url: string | null; supplier_email?: string | null; }
 interface CheckoutProps { product: Product; isOpen: boolean; onClose: () => void; }
 
 const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
@@ -94,6 +95,10 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
       setOrderNumber(data.order_number);
 
       const invUrl = `${window.location.origin}/invoice/${data.order_number}`;
+      const productUrl = `${window.location.origin}/product/${product.id}`;
+      const lines = [{ productId: product.id, productName: product.name, supplierEmail: product.supplier_email || null, quantity: formData.quantity, unitPrice: product.price }];
+      await createOrderItems(data.id, lines);
+      await notifySuppliersForOrder({ orderId: data.id, orderNumber: data.order_number, customerName: formData.name, total: totalAmount, origin: window.location.origin, lines });
 
       // SMS with invoice link
       try {
@@ -148,6 +153,8 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
     openWhatsApp(contactInfo.whatsapp_number, buildInvoiceMessage({
       orderNumber,
       invoiceUrl,
+      receiptUrl: `${window.location.origin}/receipt/${orderNumber}`,
+      productUrl: `${window.location.origin}/product/${product.id}`,
       customerName: formData.name,
       customerPhone: formData.phone,
       itemsSummary: `${product.name} × ${formData.quantity}`,
