@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,8 +9,9 @@ const corsHeaders = {
 
 interface EmailRequest {
   orderId: string;
-  type: "admin_notification" | "customer_confirmation";
+  type: "admin_notification" | "customer_confirmation" | "supplier_notification";
   email: string;
+  supplierQuickLink?: string;
 }
 
 serve(async (req) => {
@@ -23,7 +25,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { orderId, type, email }: EmailRequest = await req.json();
+    const { orderId, type, email, supplierQuickLink }: EmailRequest = await req.json();
 
     // Get order details
     const { data: order, error: orderError } = await supabase
@@ -111,6 +113,31 @@ serve(async (req) => {
         </body>
         </html>
       `;
+    } else if (type === "supplier_notification") {
+      subject = `Supplier Action Needed - ${order.order_number}`;
+      htmlContent = `
+        <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;color:#173326;background:#f3faf5;padding:24px">
+          <div style="max-width:640px;margin:auto;background:white;border:1px solid #d7eadc;border-radius:14px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#059669,#22c55e);color:white;padding:22px">
+              <h1 style="margin:0;font-size:24px">New product order to fulfill</h1>
+              <p style="margin:8px 0 0">Order ${order.order_number}</p>
+            </div>
+            <div style="padding:22px">
+              <p>Hello,</p>
+              <p>A customer has ordered a product assigned to your supply account. Please prepare and update fulfillment from your portal.</p>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:16px 0">
+                <p><strong>Customer:</strong> ${order.customer_name}</p>
+                <p><strong>Phone:</strong> ${order.customer_phone}</p>
+                <p><strong>Item(s):</strong> ${order.product_name} × ${order.quantity}</p>
+                <p><strong>Total:</strong> KES ${Number(order.total_amount).toLocaleString()}</p>
+                ${order.shipping_address ? `<p><strong>Deliver to:</strong> ${order.shipping_address}</p>` : ""}
+                ${order.courier ? `<p><strong>Carrier:</strong> ${order.courier}</p>` : ""}
+              </div>
+              <a href="${supplierQuickLink || ""}" style="display:inline-block;background:#059669;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open supplier order details</a>
+            </div>
+          </div>
+        </body></html>
+      `;
     } else {
       subject = `Order Confirmation - ${order.order_number}`;
       htmlContent = `
@@ -155,30 +182,23 @@ serve(async (req) => {
       `;
     }
 
-    // Send email using SMTP
-    // Using a simple SMTP approach with Deno
-    const smtpConfig = {
+    const transporter = nodemailer.createTransport({
       host: emailSettings.smtp_host,
       port: emailSettings.smtp_port || 587,
-      user: emailSettings.smtp_user,
-      password: emailSettings.smtp_password,
-    };
-
-    // For now, log the email that would be sent
-    // In production, you'd integrate with an email service like Resend, SendGrid, or SMTP
-    console.log("Email would be sent:", {
-      from: `${fromName} <${fromEmail}>`,
-      to: email,
-      subject,
-      html: htmlContent.substring(0, 200) + "...",
+      secure: Number(emailSettings.smtp_port) === 465,
+      auth: { user: emailSettings.smtp_user, pass: emailSettings.smtp_password },
+      tls: {
+        servername: emailSettings.smtp_host,
+        rejectUnauthorized: true,
+      },
     });
 
-    // You can integrate with Resend or other email providers here
-    // For demonstration, we'll return success
+    await transporter.sendMail({ from: `${fromName} <${fromEmail}>`, to: email, subject, html: htmlContent });
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email notification logged",
+        message: "Email sent",
         to: email,
         subject,
       }),
