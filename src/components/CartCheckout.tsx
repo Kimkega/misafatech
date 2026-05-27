@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent } from "@/components/ui/card";
 import { KENYA_LOCATIONS, COURIER_INFO, getDeliveryFee, getEstimatedDays } from "@/data/kenyaLocations";
-import { Loader2, MapPin, Truck, CreditCard, CheckCircle, MessageCircle, User, Phone, Mail } from "lucide-react";
+import { Loader2, MapPin, Truck, CreditCard, CheckCircle, MessageCircle, User, Phone, Mail, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createOrderItems, notifySuppliersForOrder, type OrderLineInput } from "@/lib/orderAutomation";
 
@@ -271,6 +271,9 @@ const CartCheckout = ({ isOpen, onClose }: CartCheckoutProps) => {
             <p className="text-sm text-emerald-600 font-medium">Estimated: {estimatedDays} days</p>
             <Button onClick={handleWhatsAppConfirm} className="w-full bg-green-500 hover:bg-green-600 gap-2">
               <MessageCircle className="w-4 h-4" /> Confirm via WhatsApp
+            </Button>
+            <Button variant="outline" onClick={() => window.open(`${window.location.origin}/receipt/${orderNumber}`, "_blank")} className="w-full gap-2">
+              <Download className="w-4 h-4" /> Download Receipt PDF
             </Button>
             <Button variant="outline" onClick={onClose} className="w-full">Close</Button>
           </div>

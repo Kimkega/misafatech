@@ -328,6 +328,9 @@ const Checkout = ({ product, isOpen, onClose }: CheckoutProps) => {
             <Button variant="outline" onClick={() => window.open(invoiceUrl, "_blank")} className="w-full gap-2">
               <FileText className="w-4 h-4" />Open Invoice Page
             </Button>
+            <Button variant="outline" onClick={() => window.open(`${window.location.origin}/receipt/${orderNumber}`, "_blank")} className="w-full gap-2">
+              <FileText className="w-4 h-4" />Download Receipt PDF
+            </Button>
             <Button variant="ghost" onClick={reset} className="w-full">Close</Button>
           </div>
         )}

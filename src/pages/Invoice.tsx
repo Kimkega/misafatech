@@ -104,6 +104,8 @@ const Invoice = () => {
     openWhatsApp(contactInfo.whatsapp_number, buildPaymentConfirmationMessage({
       orderNumber: order.order_number,
       invoiceUrl,
+      receiptUrl: `${window.location.origin}/receipt/${order.order_number}`,
+      productUrl: order.product_id ? `${window.location.origin}/product/${order.product_id}` : undefined,
       itemName: order.product_name,
       total: order.total_amount,
       customerName: order.customer_name,
